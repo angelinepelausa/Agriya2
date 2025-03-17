@@ -3,7 +3,8 @@ import { View, Image, TouchableOpacity, Text, TextInput, StyleSheet, Dimensions 
 
 const { height, width } = Dimensions.get('window');
 
-const LoginScreen = ({ navigation }) => {
+const SignupScreen = ({ navigation }) => {
+  const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
@@ -12,8 +13,16 @@ const LoginScreen = ({ navigation }) => {
       <Image source={require('../assets/Agriya_white.png')} style={styles.logo} />
       
       <View style={styles.formContainer}>
-        <Text style={styles.welcomeText}>Welcome back!</Text>
+        <Text style={styles.welcomeText}>Create Account</Text>
         
+        <TextInput
+          style={styles.input}
+          placeholder="Email"
+          placeholderTextColor="#777"
+          value={email}
+          onChangeText={setEmail}
+        />
+
         <TextInput
           style={styles.input}
           placeholder="Username"
@@ -32,22 +41,19 @@ const LoginScreen = ({ navigation }) => {
         />
 
         <TouchableOpacity style={styles.signInButton}>
-          <Text style={styles.signInButtonText}>Sign In</Text>
+          <Text style={styles.signInButtonText}>Sign Up</Text>
         </TouchableOpacity>
 
         <Text style={styles.orText}>or</Text>
 
         <TouchableOpacity style={styles.googleButton}>
-          <Text style={styles.googleButtonText}>Continue with Google</Text>
+          <Text style={styles.googleButtonText}>Sign Up with Google</Text>
         </TouchableOpacity>
 
         <Text style={styles.registerText}>
-          Don't have an account?{' '}
-          <Text 
-            style={styles.registerNow} 
-            onPress={() => navigation.navigate('SignupScreen')} // Ensure 'SignupScreen' is correctly registered
-          >
-            Register Now
+          Already have an account?{' '}
+          <Text style={styles.registerNow} onPress={() => navigation.navigate('LoginScreen')}>
+            Sign In
           </Text>
         </Text>
       </View>
@@ -160,4 +166,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default LoginScreen;
+export default SignupScreen;
