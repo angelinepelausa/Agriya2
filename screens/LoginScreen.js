@@ -1,11 +1,51 @@
 import React, { useState } from 'react';
-import { View, Image, TouchableOpacity, Text, TextInput, StyleSheet, Dimensions } from 'react-native';
+import { View, Image, TouchableOpacity, Text, TextInput, StyleSheet, Dimensions, Alert } from 'react-native';
+import auth from '@react-native-firebase/auth';
+import firestore from '@react-native-firebase/firestore';
 
 const { height, width } = Dimensions.get('window');
 
 const LoginScreen = ({ navigation }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+
+  const handleLogin = async () => {
+    if (!username || !password) {
+      Alert.alert('Error', 'Please fill in both username and password.');
+      return;
+    }
+
+    try {
+      const userSnapshot = await firestore()
+        .collection('users')
+        .where('username', '==', username)
+        .limit(1)
+        .get();
+
+      if (userSnapshot.empty) {
+        Alert.alert('Error', 'Username not found. Please register first.');
+        return;
+      }
+
+      const userData = userSnapshot.docs[0].data();
+      const email = userData.email;
+
+      const user = await auth().signInWithEmailAndPassword(email, password);
+      console.log('Logged in with user: ', user);
+
+      navigation.navigate('ProfileScreen');
+    } catch (error) {
+      console.error('Login error:', error);
+
+      if (error.code === 'auth/wrong-password') {
+        Alert.alert('Error', 'Incorrect password. Please try again.');
+      } else if (error.code === 'auth/too-many-requests') {
+        Alert.alert('Error', 'Too many requests. Please try again later.');
+      } else {
+        Alert.alert('Error', 'Login failed. Please try again.');
+      }
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -31,7 +71,7 @@ const LoginScreen = ({ navigation }) => {
           onChangeText={setPassword}
         />
 
-        <TouchableOpacity style={styles.signInButton}>
+        <TouchableOpacity style={styles.signInButton} onPress={handleLogin}>
           <Text style={styles.signInButtonText}>Sign In</Text>
         </TouchableOpacity>
 
@@ -45,16 +85,12 @@ const LoginScreen = ({ navigation }) => {
           Don't have an account?{' '}
           <Text 
             style={styles.registerNow} 
-            onPress={() => navigation.navigate('SignupScreen')} // Ensure 'SignupScreen' is correctly registered
+            onPress={() => navigation.navigate('SignupScreen')}
           >
             Register Now
           </Text>
         </Text>
       </View>
-
-      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-        <Text style={styles.backButtonText}>← Back</Text>
-      </TouchableOpacity>
     </View>
   );
 };
@@ -143,20 +179,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: '#11AB2F',
-  },
-  backButton: {
-    position: 'absolute',
-    top: 50,
-    left: 20,
-    backgroundColor: '#FFF',
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 5,
-  },
-  backButtonText: {
-    fontSize: 16,
-    color: '#11AB2F',
-    fontWeight: 'bold',
   },
 });
 

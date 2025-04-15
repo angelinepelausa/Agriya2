@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "603553863701",
+    "firebase_url": "https://agriya-fc4ef-default-rtdb.firebaseio.com",
+    "project_id": "agriya-fc4ef",
+    "storage_bucket": "agriya-fc4ef.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:603553863701:android:a25c9552b3e5b002f6961c",
+        "android_client_info": {
+          "package_name": "com.agriya"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBsjt-Q9Kshyx5dRCQi2wYEG3t8xGLDtZM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

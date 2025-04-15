@@ -107,8 +107,10 @@ android {
     }
 }
 
+apply plugin: 'com.google.gms.google-services' 
+
 dependencies {
-    // The version of react-native is set by the React Native Gradle Plugin
+
     implementation("com.facebook.react:react-android")
 
     if (hermesEnabled.toBoolean()) {
@@ -116,4 +118,7 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+
+    implementation platform('com.google.firebase:firebase-bom:33.12.0')
+    implementation 'com.google.firebase:firebase-auth'
 }
