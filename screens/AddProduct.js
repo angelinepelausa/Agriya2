@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import {
 import { Picker } from '@react-native-picker/picker';
 import { useNavigation } from '@react-navigation/native';
 import firestore from '@react-native-firebase/firestore';
+import auth from '@react-native-firebase/auth';
 import { launchImageLibrary } from 'react-native-image-picker';
 
 const { height } = Dimensions.get('window');
@@ -32,6 +33,28 @@ const AddProduct = () => {
   const [uploading, setUploading] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
+  const [username, setUsername] = useState('');
+
+  useEffect(() => {
+    const fetchUsername = async () => {
+      const user = auth().currentUser;
+      if (user) {
+        try {
+          const userDoc = await firestore().collection('users').doc(user.uid).get();
+          if (userDoc.exists) {
+            const data = userDoc.data();
+            if (data.username) {
+              setUsername(data.username);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching username:', error);
+        }
+      }
+    };
+
+    fetchUsername();
+  }, []);
 
   const handleBackPress = () => {
     navigation.goBack();
@@ -63,12 +86,33 @@ const AddProduct = () => {
     return json.secure_url;
   };
 
+  const getNextProductId = async () => {
+    try {
+      const productsSnapshot = await firestore().collection('products').orderBy('productId').get();
+      const productIds = productsSnapshot.docs.map(doc => doc.data().productId);
+      
+      let nextId = 1;
+      for (const id of productIds) {
+        if (id === nextId) {
+          nextId++;
+        } else {
+          break;
+        }
+      }
+  
+      return nextId;
+    } catch (error) {
+      console.error('Error fetching product IDs: ', error);
+      return 1;
+    }
+  };
+  
   const handleAddProduct = async () => {
     const trimmedName = productName.trim();
     const trimmedDesc = description.trim();
     const trimmedPrice = price.trim();
     const trimmedStock = stock.trim();
-
+  
     if (
       !trimmedName ||
       !trimmedDesc ||
@@ -82,21 +126,30 @@ const AddProduct = () => {
       setShowAlert(true);
       return;
     }
-
+  
     if (isNaN(trimmedPrice) || isNaN(trimmedStock)) {
       setAlertMessage('Price and Stock must be numeric values.');
       setShowAlert(true);
       return;
     }
-
+  
     if (uploading) return;
-
+  
     try {
       setUploading(true);
-
+  
       const imageUrl = await uploadImageToCloudinary(imageUri);
-
+  
+      if (!username) {
+        setAlertMessage('Please log in to add a product.');
+        setShowAlert(true);
+        return;
+      }
+  
+      const productId = await getNextProductId();
+  
       await firestore().collection('products').add({
+        productId,
         productName: trimmedName,
         description: trimmedDesc,
         price: parseFloat(trimmedPrice),
@@ -104,9 +157,10 @@ const AddProduct = () => {
         category,
         stock: parseInt(trimmedStock),
         imageUrl,
+        username,
         createdAt: firestore.FieldValue.serverTimestamp(),
       });
-
+  
       setAlertMessage('Product added successfully!');
       setShowAlert(true);
       navigation.goBack();
@@ -117,7 +171,7 @@ const AddProduct = () => {
     } finally {
       setUploading(false);
     }
-  };
+  };  
 
   return (
     <View style={styles.container}>
@@ -172,7 +226,7 @@ const AddProduct = () => {
                 <Picker.Item label="g" value="g" />
                 <Picker.Item label="L" value="L" />
                 <Picker.Item label="ml" value="ml" />
-                <Picker.Item label="pcs" value="pc" />
+                <Picker.Item label="pc" value="pc" />
                 <Picker.Item label="dozen" value="dozen" />
               </Picker>
             </View>
@@ -204,7 +258,7 @@ const AddProduct = () => {
             disabled={uploading}
           >
             <Text style={styles.addButtonText}>
-              {uploading ? 'Uploading...' : 'Add Product'}
+              {uploading ? 'Adding Product...' : 'Add Product'}
             </Text>
           </TouchableOpacity>
         </View>

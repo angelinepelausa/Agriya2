@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Image, TouchableOpacity, Text, TextInput, StyleSheet, Dimensions, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View , Image , TouchableOpacity , Text , TextInput , StyleSheet , Dimensions, Alert } from 'react-native';
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 
@@ -10,26 +10,49 @@ const SignupScreen = ({ navigation }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [emailStatus, setEmailStatus] = useState('');
+  const [usernameStatus, setUsernameStatus] = useState('');
+  const [passwordStatus, setPasswordStatus] = useState('');
 
-  const checkIfUserExists = async (email, username) => {
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      checkAvailability(email, username);
+    }, 500);
+
+    return () => clearTimeout(timeout);
+  }, [email, username]);
+
+  useEffect(() => {
+    if (!password) {
+      setPasswordStatus('');
+    } else if (!validatePassword(password)) {
+      setPasswordStatus('Password too weak');
+    } else {
+      setPasswordStatus('Password is strong');
+    }
+  }, [password]);
+
+  const checkAvailability = async (emailVal, usernameVal) => {
     const usersRef = firestore().collection('users');
-    const emailExists = await usersRef.where('email', '==', email).get();
-    const usernameExists = await usersRef.where('username', '==', username).get();
 
-    if (!emailExists.empty) {
-      return 'Email already in use';
+    if (emailVal) {
+      const emailCheck = await usersRef.where('email', '==', emailVal).get();
+      setEmailStatus(!emailCheck.empty ? 'Email already in use' : 'Email available');
+    } else {
+      setEmailStatus('');
     }
 
-    if (!usernameExists.empty) {
-      return 'Username already taken';
+    if (usernameVal) {
+      const usernameCheck = await usersRef.where('username', '==', usernameVal).get();
+      setUsernameStatus(!usernameCheck.empty ? 'Username taken' : 'Username available');
+    } else {
+      setUsernameStatus('');
     }
-
-    return null;
   };
 
-  const validatePassword = (password) => {
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-    return passwordRegex.test(password);
+  const validatePassword = (pass) => {
+    const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
+    return regex.test(pass);
   };
 
   const handleSignUp = async () => {
@@ -39,26 +62,20 @@ const SignupScreen = ({ navigation }) => {
     }
 
     if (!validatePassword(password)) {
-      Alert.alert('Error', 'Password must be at least 8 characters and include a combination of uppercase, lowercase, numbers, and symbols.');
+      Alert.alert('Error', 'Weak password.');
       return;
     }
 
     setLoading(true);
-    const userExists = await checkIfUserExists(email, username);
-    if (userExists) {
-      Alert.alert('Error', userExists);
-      setLoading(false);
-      return;
-    }
 
     try {
       await auth().createUserWithEmailAndPassword(email, password);
-
       const user = auth().currentUser;
+
       await firestore().collection('users').doc(user.uid).set({
         email,
         username,
-        password, 
+        password,
       });
 
       Alert.alert('Success', 'Account created successfully!');
@@ -77,35 +94,59 @@ const SignupScreen = ({ navigation }) => {
       <View style={styles.formContainer}>
         <Text style={styles.welcomeText}>Create Account</Text>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          placeholderTextColor="#777"
-          value={email}
-          onChangeText={setEmail}
-        />
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor="#777"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+          />
+          {emailStatus ? (
+            <Text style={[styles.statusText, { color: emailStatus.includes('available') ? 'green' : 'red' }]}>
+              {emailStatus}
+            </Text>
+          ) : null}
+        </View>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Username"
-          placeholderTextColor="#777"
-          value={username}
-          onChangeText={setUsername}
-        />
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.input}
+            placeholder="Username"
+            placeholderTextColor="#777"
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+          />
+          {usernameStatus ? (
+            <Text style={[styles.statusText, { color: usernameStatus.includes('available') ? 'green' : 'red' }]}>
+              {usernameStatus}
+            </Text>
+          ) : null}
+        </View>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          placeholderTextColor="#777"
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-        />
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            placeholderTextColor="#777"
+            secureTextEntry={true}
+            value={password}
+            onChangeText={setPassword}
+            autoCapitalize="none"
+          />
+          {passwordStatus ? (
+            <Text style={[styles.statusText, { color: passwordStatus.includes('strong') ? 'green' : 'red' }]}>
+              {passwordStatus}
+            </Text>
+          ) : null}
+        </View>
 
         <TouchableOpacity
           style={styles.signInButton}
           onPress={handleSignUp}
-          disabled={loading} 
+          disabled={loading}
         >
           <Text style={styles.signInButtonText}>{loading ? 'Signing Up...' : 'Sign Up'}</Text>
         </TouchableOpacity>
@@ -159,14 +200,23 @@ const styles = StyleSheet.create({
     color: '#555',
     marginBottom: 20,
   },
-  input: {
+  inputContainer: {
     width: '90%',
+    marginBottom: 15,
+  },
+  input: {
+    width: '100%',
     height: 50,
     backgroundColor: '#F4F4F4',
     borderRadius: 10,
     paddingHorizontal: 15,
     fontSize: 16,
-    marginBottom: 15,
+  },
+  statusText: {
+    textAlign: 'left',
+    width: '100%',
+    marginTop: 2,
+    marginBottom: 2,
   },
   signInButton: {
     width: '90%',

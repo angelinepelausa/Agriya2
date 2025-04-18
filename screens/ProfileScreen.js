@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, TouchableOpacity, Text, StyleSheet, Dimensions, Alert, Image } from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet, Dimensions, Alert, Image, ActivityIndicator } from 'react-native';
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 import { useNavigation } from '@react-navigation/native';
+import { launchImageLibrary } from 'react-native-image-picker';
 
 const { height } = Dimensions.get('window');
 
@@ -10,6 +11,8 @@ const ProfileScreen = () => {
   const navigation = useNavigation();
   const [username, setUsername] = useState('Loading...');
   const [userUid, setUserUid] = useState(null);
+  const [profileImageUrl, setProfileImageUrl] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     const unsubscribe = auth().onAuthStateChanged(async (user) => {
@@ -20,6 +23,7 @@ const ProfileScreen = () => {
           if (userDoc.exists) {
             const userData = userDoc.data();
             setUsername(userData.username || 'No username');
+            setProfileImageUrl(userData.profileImageUrl || null);
           } else {
             setUsername('User data not found');
           }
@@ -35,17 +39,103 @@ const ProfileScreen = () => {
     return () => unsubscribe();
   }, []);
 
-  const handleImageAdd = () => {
-    Alert.alert('Add Image', 'This will open image picker (to be implemented)');
+  const uploadImageToCloudinary = async (uri) => {
+    const data = new FormData();
+    data.append('file', {
+      uri,
+      type: 'image/jpeg',
+      name: 'profile.jpg',
+    });
+    data.append('upload_preset', 'Agriya');
+    data.append('cloud_name', 'drzhpbmus');
+
+    const res = await fetch('https://api.cloudinary.com/v1_1/drzhpbmus/image/upload', {
+      method: 'POST',
+      body: data,
+    });
+
+    const json = await res.json();
+    return json.secure_url;
+  };
+
+  const handleImageAdd = async () => {
+    try {
+      const result = await launchImageLibrary({
+        mediaType: 'photo',
+        quality: 0.8,
+      });
+
+      if (!result.didCancel && result.assets && result.assets.length > 0) {
+        setUploading(true);
+        const uri = result.assets[0].uri;
+        
+        const imageUrl = await uploadImageToCloudinary(uri);
+        
+        await firestore().collection('users').doc(userUid).update({
+          profileImageUrl: imageUrl
+        });
+        
+        setProfileImageUrl(imageUrl);
+      }
+    } catch (error) {
+      console.error('Error uploading profile image:', error);
+      Alert.alert('Error', 'Failed to upload profile image');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleStartSelling = () => {
     navigation.navigate('ShopScreen');
   };
 
+  const renderProfileImage = () => {
+    if (uploading) {
+      return (
+        <View style={styles.profileImage}>
+          <ActivityIndicator size="small" color="#11AB2F" />
+        </View>
+      );
+    }
+    
+    if (profileImageUrl) {
+      return (
+        <Image
+          source={{ uri: profileImageUrl }}
+          style={styles.profileImage}
+          resizeMode="cover"
+        />
+      );
+    }
+    
+    return (
+      <Image
+        source={require('../assets/Profile_picture.png')}
+        style={styles.profileImage}
+        resizeMode="cover"
+      />
+    );
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.topRectangle} />
+
+      <View style={styles.iconContainer}>
+        <TouchableOpacity onPress={() => navigation.navigate('CartScreen')}>
+          <Image
+            source={require('../assets/Cart.png')}
+            style={styles.iconImage}
+          />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('SettingsScreen')}>
+          <Image
+            source={require('../assets/Settings.png')}
+            style={styles.iconImage}
+          />
+        </TouchableOpacity>
+      </View>
 
       <TouchableOpacity style={styles.button} onPress={handleStartSelling}>
         <View style={styles.buttonContent}>
@@ -61,51 +151,55 @@ const ProfileScreen = () => {
       <View style={styles.centeredContainers}>
         <View style={styles.userContainer}>
           <TouchableOpacity style={styles.iconWrapper} onPress={handleImageAdd}>
-            <Image
-              source={require('../assets/Profile_picture.png')}
-              style={styles.profileImage}
-              resizeMode="cover"
-            />
+            {renderProfileImage()}
           </TouchableOpacity>
           <Text style={styles.usernameText}>{username}</Text>
         </View>
 
         <View style={styles.purchasesContainer}>
           <Text style={styles.sectionText}>My Purchases</Text>
-
           <View style={styles.imagesRow}>
-            <View style={styles.imageContainer}>
+            <TouchableOpacity 
+              style={styles.imageContainer} 
+              onPress={() => navigation.navigate('PurchasesScreen', { status: 'to_pay' })}
+            >
               <Image
                 source={require('../assets/Pay.png')}
                 style={styles.purchaseImage}
               />
               <Text style={styles.imageLabel}>To pay</Text>
-            </View>
-            <View style={styles.imageContainer}>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.imageContainer} 
+              onPress={() => navigation.navigate('PurchasesScreen', { status: 'to_ship' })}
+            >
               <Image
                 source={require('../assets/Ship.png')}
                 style={styles.purchaseImage}
               />
               <Text style={styles.imageLabel}>To ship</Text>
-            </View>
-            <View style={styles.imageContainer}>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.imageContainer} 
+              onPress={() => navigation.navigate('PurchasesScreen', { status: 'to_receive' })}
+            >
               <Image
                 source={require('../assets/Receive.png')}
                 style={styles.purchaseImage}
               />
               <Text style={styles.imageLabel}>To receive</Text>
-            </View>
+            </TouchableOpacity>
           </View>
         </View>
 
         <View style={styles.activitiesContainer}>
           <Text style={styles.sectionText}>Other Activities</Text>
-
           <View style={styles.buttonRow}>
             <TouchableOpacity style={styles.activityButton}>
               <Text style={styles.activityButtonText}>Recently Viewed</Text>
             </TouchableOpacity>
-
             <TouchableOpacity style={styles.activityButton}>
               <Text style={styles.activityButtonText}>Buy Again</Text>
             </TouchableOpacity>
@@ -114,7 +208,7 @@ const ProfileScreen = () => {
       </View>
 
       <View style={styles.navBar}>
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('HomeScreen')}>
           <Image
             source={require('../assets/Home.png')}
             style={styles.navImage}
@@ -122,7 +216,7 @@ const ProfileScreen = () => {
           <Text style={styles.navText}>Home</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('MarketplaceScreen')}>
           <Image
             source={require('../assets/Marketplace.png')}
             style={styles.navImage}
@@ -132,10 +226,10 @@ const ProfileScreen = () => {
 
         <TouchableOpacity style={styles.navItem}>
           <Image
-            source={require('../assets/Orders.png')}
+            source={require('../assets/Notifications.png')}
             style={styles.navImage}
           />
-          <Text style={styles.navText}>Orders</Text>
+          <Text style={styles.navText}>Notifications</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.navItem}>
@@ -143,7 +237,7 @@ const ProfileScreen = () => {
             source={require('../assets/ProfileGreen.png')}
             style={styles.navImage}
           />
-          <Text style={styles.navText}>Profile</Text>
+          <Text style={[styles.navText, { color: '#11AB2F' }]}>Profile</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -159,6 +253,18 @@ const styles = StyleSheet.create({
     width: '100%',
     height: height * 0.15,
     backgroundColor: '#11AB2F',
+  },
+  iconContainer: {
+    position: 'absolute',
+    top: height * 0.06,
+    right: 20,
+    flexDirection: 'row',
+    gap: 15,
+    alignItems: 'center',
+  },
+  iconImage: {
+    width: 24,
+    height: 24,
   },
   button: {
     position: 'absolute',
@@ -177,8 +283,8 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   buttonContent: {
-    flexDirection: 'row', 
-    alignItems: 'center', 
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   buttonText: {
     fontSize: 16,
@@ -208,9 +314,12 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   profileImage: {
-    width: 70,
-    height: 70,
+    width: 80,
+    height: 80,
     marginBottom: 15,
+    borderRadius: 35,
+    borderWidth: 2,
+    borderColor: '#11AB2F',
   },
   usernameText: {
     fontSize: 18,

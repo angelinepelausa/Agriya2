@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, TouchableOpacity, Text, StyleSheet, Dimensions, Image } from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet, Dimensions, Image, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
@@ -10,6 +10,8 @@ const ShopScreen = () => {
   const navigation = useNavigation();
   const [username, setUsername] = useState('Loading...');
   const [userUid, setUserUid] = useState(null);
+  const [profileImageUrl, setProfileImageUrl] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const unsubscribe = auth().onAuthStateChanged(async (user) => {
@@ -20,15 +22,19 @@ const ShopScreen = () => {
           if (userDoc.exists) {
             const userData = userDoc.data();
             setUsername(userData.username || 'No username');
+            setProfileImageUrl(userData.profileImageUrl || null);
           } else {
             setUsername('User data not found');
           }
         } catch (error) {
           console.error('Error fetching user data:', error);
           setUsername('Error fetching username');
+        } finally {
+          setLoading(false);
         }
       } else {
         setUsername('Not logged in');
+        setLoading(false);
       }
     });
 
@@ -47,6 +53,34 @@ const ShopScreen = () => {
     navigation.navigate('AddProduct');
   };
 
+  const renderProfileImage = () => {
+    if (loading) {
+      return (
+        <View style={styles.profileImage}>
+          <ActivityIndicator size="small" color="#11AB2F" />
+        </View>
+      );
+    }
+    
+    if (profileImageUrl) {
+      return (
+        <Image
+          source={{ uri: profileImageUrl }}
+          style={styles.profileImage}
+          resizeMode="cover"
+        />
+      );
+    }
+    
+    return (
+      <Image
+        source={require('../assets/Profile_picture.png')}
+        style={styles.profileImage}
+        resizeMode="cover"
+      />
+    );
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.topRectangle}>
@@ -58,15 +92,9 @@ const ShopScreen = () => {
 
       <View style={styles.centeredContainers}>
         <View style={styles.shopSection}>
-          <Image
-            source={require('../assets/Profile_picture.png')}
-            style={styles.profileImage}
-          />
+          {renderProfileImage()}
           <View style={styles.textButtonContainer}>
             <Text style={styles.usernameText}>{username}</Text>
-            <TouchableOpacity style={styles.viewShopButton} onPress={handleViewShop}>
-              <Text style={styles.viewShopText}>View Shop</Text>
-            </TouchableOpacity>
           </View>
         </View>
 
@@ -118,19 +146,19 @@ const ShopScreen = () => {
       </View>
 
       <View style={styles.navBar}>
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('HomeScreen')}>
           <Image source={require('../assets/Home.png')} style={styles.navImage} />
           <Text style={styles.navText}>Home</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('MarketplaceScreen')}>
           <Image source={require('../assets/Marketplace.png')} style={styles.navImage} />
           <Text style={styles.navText}>Marketplace</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.navItem}>
-          <Image source={require('../assets/Orders.png')} style={styles.navImage} />
-          <Text style={styles.navText}>Orders</Text>
+          <Image source={require('../assets/Notifications.png')} style={styles.navImage} />
+          <Text style={styles.navText}>Notifications</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.navItem}>
@@ -192,6 +220,9 @@ const styles = StyleSheet.create({
   profileImage: {
     width: 70,
     height: 70,
+    borderRadius: 35,
+    borderWidth: 2,
+    borderColor: '#11AB2F',
     marginRight: 15,
     marginLeft: 20,
   },
@@ -205,19 +236,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#5D5C5C',
     marginBottom: 10,
-  },
-  viewShopButton: {
-    width: 70,
-    height: 20,
-    backgroundColor: '#11AB2F',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 5,
-  },
-  viewShopText: {
-    fontSize: 8,
-    fontWeight: '600',
-    color: 'white',
   },
   orderSection: {
     width: 337,
