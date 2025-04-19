@@ -9,6 +9,7 @@ import MarketplaceScreen from './screens/MarketplaceScreen';
 import CartScreen from './screens/CartScreen';
 import CheckoutScreen from './screens/CheckoutScreen';
 import PurchasesScreen from './screens/PurchasesScreen';
+import OrderDetails from './screens/OrderDetails';
 import ViewProduct from './screens/ViewProduct';
 import ProfileScreen from './screens/ProfileScreen';
 import SettingsScreen from './screens/SettingsScreen';
@@ -29,6 +30,7 @@ const App = () => {
         <Stack.Screen name="CartScreen" component={CartScreen} />
         <Stack.Screen name="CheckoutScreen" component={CheckoutScreen} />
         <Stack.Screen name="PurchasesScreen" component={PurchasesScreen} />
+        <Stack.Screen name="OrderDetails" component={OrderDetails} />
         <Stack.Screen name="ViewProduct" component={ViewProduct} />
         <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
         <Stack.Screen name="SettingsScreen" component={SettingsScreen} />

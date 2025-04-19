@@ -53,6 +53,12 @@ const ShopScreen = () => {
     navigation.navigate('AddProduct');
   };
 
+  const handleStatusPress = (status) => {
+    navigation.navigate('SellerOrders', { 
+      initialTab: status.toLowerCase()
+    });
+  };
+
   const renderProfileImage = () => {
     if (loading) {
       return (
@@ -101,9 +107,24 @@ const ShopScreen = () => {
         <View style={styles.orderSection}>
           <Text style={styles.sectionText}>Order Status</Text>
           <View style={styles.orderBoxesContainer}>
-            <View style={styles.orderBox}><Text style={styles.orderBoxText}>To Ship</Text></View>
-            <View style={styles.orderBox}><Text style={styles.orderBoxText}>Cancelled</Text></View>
-            <View style={styles.orderBox}><Text style={styles.orderBoxText}>Completed</Text></View>
+            <TouchableOpacity
+              style={styles.orderBox}
+              onPress={() => handleStatusPress('upcoming')}
+            >
+              <Text style={styles.orderBoxText}>Upcoming</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.orderBox}
+              onPress={() => handleStatusPress('to_ship')}
+            >
+              <Text style={styles.orderBoxText}>To Ship</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.orderBox}
+              onPress={() => handleStatusPress('shipped')}
+            >
+              <Text style={styles.orderBoxText}>Shipped</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -310,36 +331,29 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 5,
     borderRadius: 10,
-    width: '40%',
-    alignItems: 'center',
   },
   addProductButtonText: {
-    color: 'white',
+    fontSize: 14,
     fontWeight: '600',
-    fontSize: 12,
+    color: '#fff',
   },
   navBar: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    alignItems: 'center',
-    backgroundColor: 'white',
-    height: 74,
-    borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
+    paddingVertical: 10,
+    backgroundColor: '#F6FAF9',
   },
   navItem: {
-    justifyContent: 'center',
     alignItems: 'center',
   },
   navImage: {
-    width: 25,
-    height: 25,
+    width: 20,
+    height: 20,
+    resizeMode: 'contain',
   },
   navText: {
     fontSize: 10,
     color: '#5D5C5C',
-    marginTop: 5,
-    fontWeight: '600',
   },
 });
 

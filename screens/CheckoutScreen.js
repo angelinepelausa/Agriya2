@@ -12,6 +12,26 @@ const CheckoutScreen = ({ navigation, route }) => {
   
     const { selectedItems, username } = route.params || {};
   
+    const generateTransactionId = () => {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let id = '';
+        for (let i = 0; i < 20; i++) {
+            id += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return id;
+    };
+
+    const groupItemsBySeller = (items) => {
+        return items.reduce((groups, item) => {
+            const seller = item.sellerUsername;
+            if (!groups[seller]) {
+                groups[seller] = [];
+            }
+            groups[seller].push(item);
+            return groups;
+        }, {});
+    };
+
     useEffect(() => {
       const user = auth().currentUser;
       if (!user) {
@@ -59,46 +79,72 @@ const CheckoutScreen = ({ navigation, route }) => {
           return;
         }
     
+        const transactionId = generateTransactionId();
+        const orderDate = new Date();
+        const timestamp = firestore.FieldValue.serverTimestamp(); 
+        
         const orderData = {
-          userId: user.uid,
-          items: cartItems,
-          subtotal: calculateSubtotal(),
-          shipping: 80,
-          total: calculateTotal(),
-          status: 'to_ship',
-          createdAt: firestore.FieldValue.serverTimestamp(),
-          customerInfo: {
-            name: userData?.fullName,
-            phone: userData?.phone,
-            address: userData?.address
-          }
+            transactionId,
+            userId: user.uid,
+            items: cartItems,
+            subtotal: calculateSubtotal(),
+            shipping: 80,
+            total: calculateTotal(),
+            status: 'to_pay',
+            createdAt: timestamp, 
+            orderDate: orderDate.toISOString(),
+            customerInfo: {
+                name: userData?.fullName,
+                phone: userData?.phone,
+                address: userData?.address
+            }
         };
     
-        const orderRef = await firestore().collection('orders').add(orderData);
+        const userOrderRef = firestore().collection('orders').doc(username);
+        const userOrderDoc = await userOrderRef.get();
+        
+        if (userOrderDoc.exists) {
+            const orderDataForArray = {
+                ...orderData,
+                createdAt: orderDate.toISOString() 
+            };
+            await userOrderRef.update({
+                orders: firestore.FieldValue.arrayUnion(orderDataForArray),
+                updatedAt: timestamp 
+            });
+        } else {
+            await userOrderRef.set({
+                userId: user.uid,
+                username: username,
+                orders: [{
+                    ...orderData,
+                    createdAt: orderDate.toISOString() 
+                }],
+                createdAt: timestamp,
+                updatedAt: timestamp
+            });
+        }
     
         if (username) {
-          const cartRef = firestore().collection('cart').doc(username);
-          const cartDoc = await cartRef.get();
-          
-          if (cartDoc.exists) {
-            const remainingItems = cartDoc.data().products.filter(item => 
-              !cartItems.some(selectedItem => selectedItem.productId === item.productId)
-            );
+            const cartRef = firestore().collection('cart').doc(username);
+            const cartDoc = await cartRef.get();
             
-            if (remainingItems.length > 0) {
-              await cartRef.update({ products: remainingItems });
-            } else {
-              await cartRef.delete();
+            if (cartDoc.exists) {
+                const remainingItems = cartDoc.data().products.filter(item => 
+                    !cartItems.some(selectedItem => selectedItem.productId === item.productId)
+                );
+                
+                if (remainingItems.length > 0) {
+                    await cartRef.update({ products: remainingItems });
+                } else {
+                    await cartRef.delete();
+                }
             }
-          }
         }
     
         navigation.navigate('PurchasesScreen', { 
-          status: 'to_ship',
-          newOrder: {
-            id: orderRef.id,
-            ...orderData
-          }
+            status: 'to_pay',
+            newOrder: orderData
         });
       } catch (error) {
         console.error("Error placing order:", error);
@@ -106,6 +152,38 @@ const CheckoutScreen = ({ navigation, route }) => {
       }
     };
 
+    const renderOrderItems = () => {
+      const sellerGroups = groupItemsBySeller(cartItems);
+      const sellerEntries = Object.entries(sellerGroups);
+      
+      return (
+          <View style={styles.itemsMainContainer}>
+              {sellerEntries.map(([seller, items], index) => (
+                  <View 
+                      key={seller} 
+                      style={[
+                          styles.sectionContainer,
+                          index === sellerEntries.length - 1 && styles.lastSectionContainer
+                      ]}
+                  >
+                      <Text style={styles.sellerHeader}>{seller}</Text>
+                      {items.map((item, itemIndex) => (
+                          <View key={`${item.productId}_${itemIndex}`} style={styles.itemContainer}>
+                              <Image source={{ uri: item.imageUrl }} style={styles.itemImage} />
+                              <View style={styles.itemDetails}>
+                                  <Text style={styles.itemName}>{item.productName}</Text>
+                                  <Text style={styles.itemPrice}>₱{item.price.toFixed(2)}</Text>
+                                  <Text style={styles.itemQuantity}>Qty: {item.quantity}</Text>
+                              </View>
+                              <Text style={styles.itemTotal}>₱{(item.price * item.quantity).toFixed(2)}</Text>
+                          </View>
+                      ))}
+                  </View>
+              ))}
+          </View>
+      );
+  };
+  
     return (
       <View style={styles.container}>
         <View style={styles.topRectangle}>
@@ -135,17 +213,7 @@ const CheckoutScreen = ({ navigation, route }) => {
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionTitle}>Order Items ({cartItems.length})</Text>
             {cartItems.length > 0 ? (
-              cartItems.map((item, index) => (
-                <View key={`${item.productId}_${index}`} style={styles.itemContainer}>
-                  <Image source={{ uri: item.imageUrl }} style={styles.itemImage} />
-                  <View style={styles.itemDetails}>
-                    <Text style={styles.itemName}>{item.productName}</Text>
-                    <Text style={styles.itemPrice}>₱{item.price.toFixed(2)}</Text>
-                    <Text style={styles.itemQuantity}>Qty: {item.quantity}</Text>
-                  </View>
-                  <Text style={styles.itemTotal}>₱{(item.price * item.quantity).toFixed(2)}</Text>
-                </View>
-              ))
+              renderOrderItems()
             ) : (
               <Text style={styles.noItemsText}>No items selected for checkout</Text>
             )}
@@ -229,18 +297,34 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   sectionContainer: {
+    width: '100%',
     backgroundColor: 'white',
     borderRadius: 8,
     padding: 15,
-    marginVertical: 2, 
-    marginHorizontal: 5, 
-    elevation: 1,
-  },
+    marginVertical: 2,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc'
+},
+lastSectionContainer: {
+    borderBottomWidth: 0, 
+},
+itemsMainContainer: {
+    marginBottom: 10,
+},
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 15,
     color: '#11AB2F',
+  },
+  sellerHeader: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333',
+    marginBottom: 15,
+    paddingBottom: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
   row: {
     flexDirection: 'row',

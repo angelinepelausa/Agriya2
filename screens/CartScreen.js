@@ -244,43 +244,49 @@ const CartScreen = ({ navigation }) => {
         ) : (
           cartItems.map((item, index) => (
             <View key={index} style={styles.cartItemContainer}>
-              <TouchableOpacity
-                style={styles.checkbox}
-                onPress={() => toggleItemSelection(item.productId)}
-              >
-                <Text style={styles.checkboxText}>
-                  {item.selected ? '☑' : '☐'}
-                </Text>
-              </TouchableOpacity>
+              <View style={styles.sellerUsernameContainer}>
+                <Text style={styles.sellerUsername}>{item.sellerUsername}</Text>
+              </View>
 
-              <Image source={{ uri: item.imageUrl }} style={styles.cartItemImage} />
-              <View style={styles.cartItemDetails}>
-                <Text style={styles.cartItemName}>{item.productName}</Text>
-                <Text style={styles.cartItemPrice}>₱{Number(item.price).toFixed(2)}</Text>
-                
-                <View style={styles.quantityContainer}>
-                  <TouchableOpacity 
-                    style={styles.qtyButton} 
-                    onPress={() => decrementQuantity(item.productId, typeof item.quantity === 'number' ? item.quantity : previousQuantity)}
-                  >
-                    <Text style={styles.qtyText}>-</Text>
-                  </TouchableOpacity>
+              <View style={styles.productRow}>
+                <TouchableOpacity
+                  style={styles.checkbox}
+                  onPress={() => toggleItemSelection(item.productId)}
+                >
+                  <Text style={styles.checkboxText}>
+                    {item.selected ? '☑' : '☐'}
+                  </Text>
+                </TouchableOpacity>
 
-                  <TextInput
-                    style={styles.qtyInput}
-                    value={item.quantity.toString()}
-                    onChangeText={(text) => handleQuantityChange(item.productId, text)}
-                    onBlur={() => handleQuantityBlur(item.productId)}
-                    keyboardType="number-pad"
-                    maxLength={3}
-                  />
+                <Image source={{ uri: item.imageUrl }} style={styles.cartItemImage} />
+                <View style={styles.cartItemDetails}>
+                  <Text style={styles.cartItemName}>{item.productName}</Text>
+                  <Text style={styles.cartItemPrice}>₱{Number(item.price).toFixed(2)}</Text>
+                  
+                  <View style={styles.quantityContainer}>
+                    <TouchableOpacity 
+                      style={styles.qtyButton} 
+                      onPress={() => decrementQuantity(item.productId, typeof item.quantity === 'number' ? item.quantity : previousQuantity)}
+                    >
+                      <Text style={styles.qtyText}>-</Text>
+                    </TouchableOpacity>
 
-                  <TouchableOpacity 
-                    style={styles.qtyButton} 
-                    onPress={() => incrementQuantity(item.productId, typeof item.quantity === 'number' ? item.quantity : previousQuantity)}
-                  >
-                    <Text style={styles.qtyText}>+</Text>
-                  </TouchableOpacity>
+                    <TextInput
+                      style={styles.qtyInput}
+                      value={item.quantity.toString()}
+                      onChangeText={(text) => handleQuantityChange(item.productId, text)}
+                      onBlur={() => handleQuantityBlur(item.productId)}
+                      keyboardType="number-pad"
+                      maxLength={3}
+                    />
+
+                    <TouchableOpacity 
+                      style={styles.qtyButton} 
+                      onPress={() => incrementQuantity(item.productId, typeof item.quantity === 'number' ? item.quantity : previousQuantity)}
+                    >
+                      <Text style={styles.qtyText}>+</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
             </View>
@@ -358,12 +364,22 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   cartItemContainer: {
-    flexDirection: 'row',
     backgroundColor: 'white',
     marginBottom: 1,
     padding: 15,
     borderRadius: 2,
     elevation: 1,
+  },
+  sellerUsernameContainer: {
+    marginBottom: 10,
+  },
+  sellerUsername: {
+    fontSize: 17,
+    fontWeight: 'bold',
+    marginLeft: 35,
+  },
+  productRow: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
   checkbox: {
@@ -373,8 +389,8 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
   cartItemImage: {
-    width: 80,
-    height: 80,
+    width: 90,
+    height: 90,
     borderRadius: 8,
     marginRight: 15,
   },
@@ -384,7 +400,7 @@ const styles = StyleSheet.create({
   },
   cartItemName: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '500',
     marginBottom: 5,
   },
   cartItemPrice: {

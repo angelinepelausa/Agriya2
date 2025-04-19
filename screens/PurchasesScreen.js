@@ -5,66 +5,109 @@ import auth from '@react-native-firebase/auth';
 
 const { height } = Dimensions.get('window');
 
+const EmptyState = ({ message }) => (
+  <View style={styles.emptyContainer}>
+    <Image 
+      source={require('../assets/EmptyBox.png')} 
+      style={styles.emptyImage} 
+      resizeMode="contain"
+    />
+    <Text style={styles.emptyText}>{message}</Text>
+  </View>
+);
+
 const PurchasesScreen = ({ route, navigation }) => {
-    const [activeTab, setActiveTab] = useState('to_pay');
-    const [orders, setOrders] = useState([]);
-    const [loading, setLoading] = useState(true);
-  
-    useEffect(() => {
-      if (route.params?.status) {
-        setActiveTab(route.params.status);
+  const [activeTab, setActiveTab] = useState('to_pay');
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [currentUsername, setCurrentUsername] = useState('');
+
+  useEffect(() => {
+    const user = auth().currentUser;
+    if (!user) {
+      navigation.goBack();
+      return;
+    }
+
+    const fetchUsername = async () => {
+      try {
+        const userDoc = await firestore().collection('users').doc(user.uid).get();
+        if (userDoc.exists) {
+          setCurrentUsername(userDoc.data().username);
+        }
+      } catch (error) {
+        console.error("Error fetching username:", error);
       }
-  
-      if (route.params?.newOrder) {
-        setOrders([route.params.newOrder]);
-        setLoading(false);
-        return;
-      }
-  
-      const user = auth().currentUser;
-      if (!user) {
-        setLoading(false);
-        navigation.goBack();
-        return;
-      }
-  
-      const unsubscribe = firestore()
-        .collection('orders')
-        .where('userId', '==', user.uid)
-        .where('status', '==', 'to_pay')
-        .orderBy('createdAt', 'desc')
-        .onSnapshot(querySnapshot => {
-          const ordersData = [];
-          querySnapshot.forEach(doc => {
-            ordersData.push({
-              id: doc.id,
-              ...doc.data()
-            });
-          });
-          setOrders(ordersData);
+    };
+
+    fetchUsername();
+  }, []);
+
+  useEffect(() => {
+    if (!currentUsername) return;
+
+    setLoading(true);
+
+    const unsubscribe = firestore()
+      .collection('orders')
+      .doc(currentUsername) 
+      .onSnapshot(
+        (doc) => {
+          if (doc.exists) {
+            const userOrders = doc.data().orders || [];
+            const filteredOrders = userOrders.filter(
+              (order) => order.status === activeTab
+            );
+            setOrders(filteredOrders);
+          } else {
+            setOrders([]);
+          }
           setLoading(false);
-        }, error => {
+        },
+        (error) => {
           console.error("Error fetching orders:", error);
           setLoading(false);
-        });
+        }
+      );
+
+    return () => unsubscribe();
+  }, [currentUsername, activeTab]); 
   
-      return () => unsubscribe();
-    }, [route.params?.status, route.params?.newOrder]);
+    const getEmptyMessage = () => {
+      switch (activeTab) {
+        case 'to_pay':
+          return 'No orders to pay';
+        case 'to_ship':
+          return 'No orders to ship';
+        case 'to_receive':
+          return 'No orders to receive';
+        case 'completed':
+          return 'No completed orders';
+        case 'cancelled':
+          return 'No cancelled orders';
+        default:
+          return 'No orders yet';
+      }
+    };
   
     const renderContent = () => {
       if (loading) {
         return <ActivityIndicator size="large" color="#11AB2F" style={styles.loadingIndicator} />;
       }
-  
+    
       if (orders.length === 0) {
-        return <EmptyState message="No orders yet" />;
+        return <EmptyState message={getEmptyMessage()} />;
       }
-  
+    
       return (
         <View style={styles.ordersContainer}>
           {orders.map(order => (
-            <View key={order.id} style={styles.orderCard}>
-              <Text style={styles.shopName}>Your Order</Text>
+  <TouchableOpacity 
+    key={order.id} 
+    onPress={() => navigation.navigate('OrderDetails', { order })}
+  >
+    <View style={styles.orderCard}>
+      <Text style={styles.shopName}>{order.sellerUsername || 'Seller'}</Text>
               
               {order.items.map((item, index) => (
                 <View key={`${item.productId}_${index}`} style={styles.orderItem}>
@@ -83,6 +126,7 @@ const PurchasesScreen = ({ route, navigation }) => {
                 <Text style={[styles.orderSummaryValue, styles.orderTotalValue]}>₱{order.total.toFixed(2)}</Text>
               </View>
             </View>
+            </TouchableOpacity>
           ))}
         </View>
       );
@@ -177,13 +221,13 @@ const styles = StyleSheet.create({
   },
   backArrow: {
     fontSize: 24,
-    color: 'white',
+    color: '#f8f8f8', 
     fontWeight: 'bold',
   },
   pageTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: 'white',
+    color: '#f5f5f5',
     marginLeft: 10,
   },
   tabsOuterContainer: {
@@ -205,10 +249,10 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 14,
     fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: 'rgba(248, 248, 248, 0.8)', 
   },
   activeTabText: {
-    color: 'white',
+    color: '#f5f5f5', 
     fontWeight: '600',
   },
   tabBottomLine: {
@@ -219,11 +263,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   activeTabBottomLine: {
-    backgroundColor: 'white',
+    backgroundColor: '#f8f8f8', 
   },
   contentContainer: {
     flexGrow: 1,
     padding: 15,
+  },
+  loadingIndicator: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   emptyContainer: {
     flex: 1,
@@ -235,21 +284,19 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     marginBottom: 20,
+    opacity: 0.6,
   },
   emptyText: {
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
-  },
-  ordersContainer: {
-    padding: 10,
+    marginTop: 10,
   },
   orderCard: {
-    backgroundColor: 'white',
+    backgroundColor: '#fafafa', 
     borderRadius: 8,
     padding: 15,
-    marginBottom: 15,
-    elevation: 2,
+    marginBottom: 10,
   },
   shopName: {
     fontSize: 16,
@@ -274,6 +321,7 @@ const styles = StyleSheet.create({
   orderItemName: {
     fontSize: 14,
     fontWeight: '600',
+    color: '#111111', 
   },
   orderItemPrice: {
     fontSize: 12,
@@ -288,12 +336,7 @@ const styles = StyleSheet.create({
   orderItemTotal: {
     fontSize: 14,
     fontWeight: 'bold',
-  },
-  orderSummary: {
-    marginTop: 15,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-    paddingTop: 10,
+    color: '#1a1a1a', 
   },
   orderSummaryRow: {
     flexDirection: 'row',
