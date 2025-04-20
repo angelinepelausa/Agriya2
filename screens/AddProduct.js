@@ -1,17 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Dimensions,
-  ScrollView,
-  Modal,
-  TouchableWithoutFeedback,
-  Keyboard,
-  Image,
-} from 'react-native';
+import {View ,Text ,TextInput , TouchableOpacity, StyleSheet, Dimensions, ScrollView, Modal, TouchableWithoutFeedback, Keyboard, Image} from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { useNavigation } from '@react-navigation/native';
 import firestore from '@react-native-firebase/firestore';
@@ -34,9 +22,10 @@ const AddProduct = () => {
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
   const [username, setUsername] = useState('');
+  const [userProfileComplete, setUserProfileComplete] = useState(false);
 
   useEffect(() => {
-    const fetchUsername = async () => {
+    const fetchUserData = async () => {
       const user = auth().currentUser;
       if (user) {
         try {
@@ -45,15 +34,17 @@ const AddProduct = () => {
             const data = userDoc.data();
             if (data.username) {
               setUsername(data.username);
+              const isProfileComplete = data.fullName && data.username && data.password && data.address && data.phone;
+              setUserProfileComplete(isProfileComplete);
             }
           }
         } catch (error) {
-          console.error('Error fetching username:', error);
+          console.error('Error fetching user data:', error);
         }
       }
     };
 
-    fetchUsername();
+    fetchUserData();
   }, []);
 
   const handleBackPress = () => {
@@ -108,6 +99,13 @@ const AddProduct = () => {
   };
   
   const handleAddProduct = async () => {
+    if (!userProfileComplete) {
+      setAlertMessage('Please complete your profile in Settings before adding products');
+      setShowAlert(true);
+      navigation.navigate('SettingsScreen');
+      return;
+    }
+
     const trimmedName = productName.trim();
     const trimmedDesc = description.trim();
     const trimmedPrice = price.trim();
@@ -184,8 +182,20 @@ const AddProduct = () => {
 
       <ScrollView contentContainerStyle={styles.formContainer}>
         <View style={styles.card}>
+          {!userProfileComplete && (
+            <View style={styles.warningContainer}>
+              <Text style={styles.warningText}>
+                Please complete your profile in Settings before adding products
+              </Text>
+            </View>
+          )}
+
           <Text style={styles.label}>Product Image</Text>
-          <TouchableOpacity style={styles.imagePlaceholder} onPress={handleChooseImage}>
+          <TouchableOpacity 
+            style={styles.imagePlaceholder} 
+            onPress={handleChooseImage}
+            disabled={!userProfileComplete}
+          >
             {imageUri ? (
               <Image source={{ uri: imageUri }} style={{ width: '100%', height: '100%' }} />
             ) : (
@@ -199,6 +209,7 @@ const AddProduct = () => {
             value={productName}
             onChangeText={setProductName}
             placeholder="Enter product name"
+            editable={userProfileComplete}
           />
 
           <Text style={styles.label}>Product Description</Text>
@@ -208,6 +219,7 @@ const AddProduct = () => {
             value={description}
             onChangeText={setDescription}
             placeholder="Enter product description"
+            editable={userProfileComplete}
           />
 
           <Text style={styles.label}>Price</Text>
@@ -218,9 +230,15 @@ const AddProduct = () => {
               onChangeText={(text) => setPrice(text.replace(/[^0-9.]/g, ''))}
               keyboardType="numeric"
               placeholder="Enter price"
+              editable={userProfileComplete}
             />
             <View style={styles.dropdown}>
-              <Picker selectedValue={unit} onValueChange={setUnit} style={styles.picker}>
+              <Picker 
+                selectedValue={unit} 
+                onValueChange={setUnit} 
+                style={styles.picker}
+                enabled={userProfileComplete}
+              >
                 <Picker.Item label="Choose unit" value="" enabled={false} style={{ fontSize: 14, color: '#aaa' }} />
                 <Picker.Item label="kg" value="kg" />
                 <Picker.Item label="g" value="g" />
@@ -234,7 +252,12 @@ const AddProduct = () => {
 
           <Text style={styles.label}>Category</Text>
           <View style={styles.pickerWrapper}>
-            <Picker selectedValue={category} onValueChange={setCategory} style={styles.picker}>
+            <Picker 
+              selectedValue={category} 
+              onValueChange={setCategory} 
+              style={styles.picker}
+              enabled={userProfileComplete}
+            >
               <Picker.Item label="Choose category" value="" enabled={false} style={{ fontSize: 14, color: '#aaa' }} />
               <Picker.Item label="Fruits & Vegetables" value="Fruits & Vegetables" />
               <Picker.Item label="Dairy" value="Dairy" />
@@ -250,12 +273,13 @@ const AddProduct = () => {
             onChangeText={(text) => setStock(text.replace(/[^0-9]/g, ''))}
             keyboardType="numeric"
             placeholder="Enter stock quantity"
+            editable={userProfileComplete}
           />
 
           <TouchableOpacity
-            style={styles.addButton}
+            style={[styles.addButton, !userProfileComplete && styles.disabledButton]}
             onPress={handleAddProduct}
-            disabled={uploading}
+            disabled={uploading || !userProfileComplete}
           >
             <Text style={styles.addButtonText}>
               {uploading ? 'Adding Product...' : 'Add Product'}
@@ -315,6 +339,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 10,
     padding: 12,
+  },
+  warningContainer: {
+    backgroundColor: '#FFECB3',
+    padding: 10,
+    borderRadius: 5,
+    marginBottom: 15,
+  },
+  warningText: {
+    color: '#FF6F00',
+    textAlign: 'center',
   },
   label: {
     fontSize: 14,
@@ -377,6 +411,9 @@ const styles = StyleSheet.create({
     marginTop: 25,
     marginBottom: 10,
     alignItems: 'center',
+  },
+  disabledButton: {
+    backgroundColor: '#cccccc',
   },
   addButtonText: {
     color: '#fff',

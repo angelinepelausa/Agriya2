@@ -16,8 +16,8 @@ const EmptyState = ({ message }) => (
   </View>
 );
 
-const PurchasesScreen = ({ route, navigation }) => {
-  const [activeTab, setActiveTab] = useState('to_pay');
+const SellerOrder = ({ route, navigation }) => {
+  const [activeTab, setActiveTab] = useState('upcoming');
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentUsername, setCurrentUsername] = useState('');
@@ -49,13 +49,13 @@ const PurchasesScreen = ({ route, navigation }) => {
     setLoading(true);
 
     const unsubscribe = firestore()
-      .collection('orders')
-      .doc(currentUsername) 
+      .collection('sellerOrders')
+      .doc(currentUsername)
       .onSnapshot(
         (doc) => {
           if (doc.exists) {
-            const userOrders = doc.data().orders || [];
-            const filteredOrders = userOrders.filter(
+            const sellerOrders = doc.data().orders || [];
+            const filteredOrders = sellerOrders.filter(
               (order) => order.status === activeTab
             );
             setOrders(filteredOrders);
@@ -73,149 +73,91 @@ const PurchasesScreen = ({ route, navigation }) => {
     return () => unsubscribe();
   }, [currentUsername, activeTab]);
 
-  const handleMarkAsReceived = async (transactionId) => {
+  const handleStatusUpdate = async (transactionId, newStatus) => {
     try {
-      const orderToUpdate = orders.find(order => order.transactionId === transactionId);
-      if (!orderToUpdate) {
-        Alert.alert('Error', 'Order not found in your purchases');
-        return;
+      console.log(`Updating order ${transactionId} to ${newStatus.sellerStatus} (seller) and ${newStatus.mainStatus} (main)`);
+      
+      const sellerDocRef = firestore().collection('sellerOrders').doc(currentUsername);
+      const sellerDoc = await sellerDocRef.get();
+
+      if (sellerDoc.exists) {
+        const updatedSellerOrders = sellerDoc.data().orders.map(order => 
+          order.transactionId === transactionId ? { ...order, status: newStatus.sellerStatus } : order
+        );
+        
+        await sellerDocRef.update({ orders: updatedSellerOrders });
+        console.log("✅ Updated seller's order status");
       }
 
-      const sellerGroups = orderToUpdate.items.reduce((groups, item) => {
-        const seller = item.sellerUsername;
-        if (!groups.includes(seller)) {
-          groups.push(seller);
-        }
-        return groups;
-      }, []);
-
-      if (sellerGroups.length === 0) {
-        Alert.alert('Error', 'Could not identify sellers for this order');
-        return;
-      }
-
+      const allOrdersDocs = await firestore().collection('orders').get();
+      
+      let foundOrder = false;
       const batch = firestore().batch();
 
-      const buyerOrderRef = firestore().collection('orders').doc(currentUsername);
-      const buyerDoc = await buyerOrderRef.get();
+      allOrdersDocs.forEach(userDoc => {
+        const userOrders = userDoc.data().orders || [];
+        const updatedOrders = userOrders.map(order => {
+          if (order.transactionId === transactionId) {
+            foundOrder = true;
+            return { ...order, status: newStatus.mainStatus };
+          }
+          return order;
+        });
 
-      if (buyerDoc.exists) {
-        const updatedBuyerOrders = buyerDoc.data().orders.map(order => 
-          order.transactionId === transactionId ? { ...order, status: 'completed' } : order
-        );
-        batch.update(buyerOrderRef, { orders: updatedBuyerOrders });
-      } else {
-        Alert.alert('Error', 'Your order document was not found');
-        return;
-      }
-
-      for (const sellerUsername of sellerGroups) {
-        const sellerOrderRef = firestore().collection('sellerOrders').doc(sellerUsername);
-        const sellerDoc = await sellerOrderRef.get();
-
-        if (sellerDoc.exists) {
-          const updatedSellerOrders = sellerDoc.data().orders.map(order => {
-            if (order.transactionId === transactionId) {
-              const sellerItems = order.items.filter(item => 
-                item.sellerUsername === sellerUsername
-              );
-              return { 
-                ...order, 
-                status: 'completed',
-                items: sellerItems
-              };
-            }
-            return order;
-          });
-          batch.update(sellerOrderRef, { orders: updatedSellerOrders });
+        if (updatedOrders.some(o => o.transactionId === transactionId)) {
+          batch.update(userDoc.ref, { orders: updatedOrders });
         }
-      }
+      });
 
-      await batch.commit();
-      Alert.alert('Success', 'Order marked as received and completed!');
+      if (foundOrder) {
+        await batch.commit();
+        console.log("✅ Updated main orders collection status");
+        Alert.alert('Success', newStatus.successMessage);
+      } else {
+        console.log("❌ No matching order found in any user's orders");
+        Alert.alert('Error', `Order ${transactionId} not found in main database`);
+      }
     } catch (error) {
-      console.error("Error marking as received:", error);
-      Alert.alert('Error', error.message || 'Failed to update order status. Please try again.');
+      console.error("🔥 Error updating order status:", error);
+      Alert.alert('Error', `Failed to update order status: ${error.message}`);
     }
   };
 
-  const handleCancelOrder = async (transactionId) => {
-    try {
-      const orderToUpdate = orders.find(order => order.transactionId === transactionId);
-      if (!orderToUpdate) {
-        Alert.alert('Error', 'Order not found in your purchases');
-        return;
-      }
+  const handleConfirmOrder = (transactionId) => {
+    handleStatusUpdate(transactionId, {
+      sellerStatus: 'to_ship',
+      mainStatus: 'to_ship',
+      successMessage: 'Order confirmed and ready to ship'
+    });
+  };
 
-      const sellerGroups = orderToUpdate.items.reduce((groups, item) => {
-        const seller = item.sellerUsername;
-        if (!groups.includes(seller)) {
-          groups.push(seller);
-        }
-        return groups;
-      }, []);
+  const handleMarkAsShipped = (transactionId) => {
+    handleStatusUpdate(transactionId, {
+      sellerStatus: 'shipped',
+      mainStatus: 'to_receive',
+      successMessage: 'Order marked as shipped!'
+    });
+  };
 
-      if (sellerGroups.length === 0) {
-        Alert.alert('Error', 'Could not identify sellers for this order');
-        return;
-      }
-
-      const batch = firestore().batch();
-
-      const buyerOrderRef = firestore().collection('orders').doc(currentUsername);
-      const buyerDoc = await buyerOrderRef.get();
-
-      if (buyerDoc.exists) {
-        const updatedBuyerOrders = buyerDoc.data().orders.map(order => 
-          order.transactionId === transactionId ? { ...order, status: 'cancelled' } : order
-        );
-        batch.update(buyerOrderRef, { orders: updatedBuyerOrders });
-      } else {
-        Alert.alert('Error', 'Your order document was not found');
-        return;
-      }
-
-      for (const sellerUsername of sellerGroups) {
-        const sellerOrderRef = firestore().collection('sellerOrders').doc(sellerUsername);
-        const sellerDoc = await sellerOrderRef.get();
-
-        if (sellerDoc.exists) {
-          const updatedSellerOrders = sellerDoc.data().orders.map(order => {
-            if (order.transactionId === transactionId) {
-              const sellerItems = order.items.filter(item => 
-                item.sellerUsername === sellerUsername
-              );
-              return { 
-                ...order, 
-                status: 'cancelled',
-                items: sellerItems
-              };
-            }
-            return order;
-          });
-          batch.update(sellerOrderRef, { orders: updatedSellerOrders });
-        }
-      }
-
-      await batch.commit();
-      Alert.alert('Success', 'Order has been cancelled');
-    } catch (error) {
-      console.error("Error cancelling order:", error);
-      Alert.alert('Error', error.message || 'Failed to cancel order. Please try again.');
-    }
+  const handleCancelOrder = (transactionId) => {
+    handleStatusUpdate(transactionId, {
+      sellerStatus: 'cancelled',
+      mainStatus: 'cancelled',
+      successMessage: 'Order has been cancelled'
+    });
   };
 
   const getEmptyMessage = () => {
     switch (activeTab) {
-      case 'to_pay': return 'No orders to pay';
+      case 'upcoming': return 'No upcoming orders';
       case 'to_ship': return 'No orders to ship';
-      case 'to_receive': return 'No orders to receive';
+      case 'shipped': return 'No shipped orders';
       case 'completed': return 'No completed orders';
       case 'cancelled': return 'No cancelled orders';
       default: return 'No orders yet';
     }
   };
-  
+
   const renderContent = () => {
     if (loading) {
       return <ActivityIndicator size="large" color="#11AB2F" style={styles.loadingIndicator} />;
@@ -233,13 +175,8 @@ const PurchasesScreen = ({ route, navigation }) => {
             onPress={() => navigation.navigate('OrderDetails', { order })}
           >
             <View style={styles.orderCard}>
-            <Text style={styles.shopName}>
-  {order.sellers 
-    ? order.sellers.length > 1 
-      ? `${order.sellers[0]} + ${order.sellers.length - 1} more` 
-      : order.sellers[0]
-    : 'Seller'}
-</Text>
+              <Text style={styles.customerName}>{order.customerInfo.name}</Text>
+              
               {order.items.map((item, index) => (
                 <View key={`${item.productId}_${index}`} style={styles.orderItem}>
                   <Image source={{ uri: item.imageUrl }} style={styles.orderItemImage} />
@@ -257,22 +194,38 @@ const PurchasesScreen = ({ route, navigation }) => {
                 <Text style={[styles.orderSummaryValue, styles.orderTotalValue]}>₱{order.total.toFixed(2)}</Text>
               </View>
 
-              {activeTab === 'to_receive' && (
-                <TouchableOpacity 
-                  style={styles.receivedButton}
-                  onPress={() => handleMarkAsReceived(order.transactionId)}
-                >
-                  <Text style={styles.receivedButtonText}>Mark as Received</Text>
-                </TouchableOpacity>
+              {activeTab === 'upcoming' && (
+                <View style={styles.buttonGroup}>
+                  <TouchableOpacity 
+                    style={[styles.actionButton, styles.confirmButton]}
+                    onPress={() => handleConfirmOrder(order.transactionId)}
+                  >
+                    <Text style={styles.actionButtonText}>Confirm Order</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.actionButton, styles.cancelButton]}
+                    onPress={() => handleCancelOrder(order.transactionId)}
+                  >
+                    <Text style={styles.actionButtonText}>Cancel Order</Text>
+                  </TouchableOpacity>
+                </View>
               )}
 
-              {activeTab === 'to_pay' && (
-                <TouchableOpacity 
-                  style={[styles.actionButton, styles.cancelButton]}
-                  onPress={() => handleCancelOrder(order.transactionId)}
-                >
-                  <Text style={styles.actionButtonText}>Cancel Order</Text>
-                </TouchableOpacity>
+              {activeTab === 'to_ship' && (
+                <View style={styles.buttonGroup}>
+                  <TouchableOpacity 
+                    style={[styles.actionButton, styles.shipButton]}
+                    onPress={() => handleMarkAsShipped(order.transactionId)}
+                  >
+                    <Text style={styles.actionButtonText}>Mark as Shipped</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.actionButton, styles.cancelButton]}
+                    onPress={() => handleCancelOrder(order.transactionId)}
+                  >
+                    <Text style={styles.actionButtonText}>Cancel Order</Text>
+                  </TouchableOpacity>
+                </View>
               )}
             </View>
           </TouchableOpacity>
@@ -280,7 +233,7 @@ const PurchasesScreen = ({ route, navigation }) => {
       </View>
     );
   };
-  
+
   return (
     <View style={styles.container}>
       <View style={styles.topRectangle}>
@@ -288,9 +241,9 @@ const PurchasesScreen = ({ route, navigation }) => {
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
             <Text style={styles.backArrow}>&lt;</Text>
           </TouchableOpacity>
-          <Text style={styles.pageTitle}>My Purchases</Text>
+          <Text style={styles.pageTitle}>Orders</Text>
         </View>
-  
+
         <View style={styles.tabsOuterContainer}>
           <ScrollView 
             horizontal 
@@ -298,7 +251,7 @@ const PurchasesScreen = ({ route, navigation }) => {
             style={styles.tabsContainer}
             contentContainerStyle={styles.tabsContentContainer}
           >
-            {['to_pay', 'to_ship', 'to_receive', 'completed', 'cancelled'].map((tab) => (
+            {['upcoming', 'to_ship', 'shipped', 'completed', 'cancelled'].map((tab) => (
               <TouchableOpacity 
                 key={tab}
                 style={styles.tab}
@@ -313,7 +266,7 @@ const PurchasesScreen = ({ route, navigation }) => {
           </ScrollView>
         </View>
       </View>
-  
+
       <ScrollView contentContainerStyle={styles.contentContainer}>
         {renderContent()}
       </ScrollView>
@@ -420,7 +373,7 @@ const styles = StyleSheet.create({
     padding: 15,
     marginBottom: 10,
   },
-  shopName: {
+  customerName: {
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 10,
@@ -487,30 +440,31 @@ const styles = StyleSheet.create({
     color: '#11AB2F',
     fontSize: 16,
   },
-  receivedButton: {
-    backgroundColor: '#11AB2F',
-    padding: 10,
-    borderRadius: 5,
-    alignItems: 'center',
+  buttonGroup: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginTop: 10,
-  },
-  receivedButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
   },
   actionButton: {
     padding: 10,
     borderRadius: 5,
     alignItems: 'center',
-    marginTop: 10,
+    flex: 1,
+    marginHorizontal: 5,
   },
   actionButtonText: {
     color: 'white',
     fontWeight: 'bold',
+  },
+  confirmButton: {
+    backgroundColor: '#11AB2F',
+  },
+  shipButton: {
+    backgroundColor: '#11AB2F',
   },
   cancelButton: {
     backgroundColor: '#e74c3c',
   },
 });
 
-export default PurchasesScreen;
+export default SellerOrder;

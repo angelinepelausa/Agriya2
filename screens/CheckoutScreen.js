@@ -84,34 +84,35 @@ const CheckoutScreen = ({ navigation, route }) => {
         const timestamp = firestore.FieldValue.serverTimestamp(); 
         
         const orderData = {
-            transactionId,
-            userId: user.uid,
-            items: cartItems,
-            subtotal: calculateSubtotal(),
-            shipping: 80,
-            total: calculateTotal(),
-            status: 'to_pay',
-            createdAt: timestamp, 
-            orderDate: orderDate.toISOString(),
-            customerInfo: {
-                name: userData?.fullName,
-                phone: userData?.phone,
-                address: userData?.address
-            }
-        };
+          transactionId,
+          userId: user.uid,
+          items: cartItems,
+          subtotal: calculateSubtotal(),
+          shipping: 80,
+          total: calculateTotal(),
+          status: 'to_pay',
+          createdAt: timestamp,
+          orderDate: orderDate.toISOString(),
+          customerInfo: {
+              name: userData?.fullName,
+              phone: userData?.phone,
+              address: userData?.address
+          },
+          sellers: Object.keys(groupItemsBySeller(cartItems))
+      };
     
         const userOrderRef = firestore().collection('orders').doc(username);
         const userOrderDoc = await userOrderRef.get();
         
         if (userOrderDoc.exists) {
-            const orderDataForArray = {
-                ...orderData,
-                createdAt: orderDate.toISOString() 
-            };
-            await userOrderRef.update({
-                orders: firestore.FieldValue.arrayUnion(orderDataForArray),
-                updatedAt: timestamp 
-            });
+          const orderDataForArray = {
+            ...orderData,
+            createdAt: orderDate.toISOString() 
+          };
+          await userOrderRef.update({
+            orders: firestore.FieldValue.arrayUnion(orderDataForArray),
+            updatedAt: firestore.FieldValue.serverTimestamp() 
+          });          
         } else {
             await userOrderRef.set({
                 userId: user.uid,
@@ -125,6 +126,32 @@ const CheckoutScreen = ({ navigation, route }) => {
             });
         }
     
+        const sellerGroups = groupItemsBySeller(cartItems);
+        for (const [sellerUsername, sellerItems] of Object.entries(sellerGroups)) {
+            const sellerOrderRef = firestore().collection('sellerOrders').doc(sellerUsername);
+            
+            const sellerOrderData = {
+              ...orderData,
+              items: sellerItems,
+              createdAt: orderDate.toISOString(), 
+              status: 'upcoming'
+            };            
+            
+            const sellerOrderDoc = await sellerOrderRef.get();
+            if (sellerOrderDoc.exists) {
+                await sellerOrderRef.update({
+                    orders: firestore.FieldValue.arrayUnion(sellerOrderData),
+                    updatedAt: timestamp
+                });
+            } else {
+                await sellerOrderRef.set({
+                    orders: [sellerOrderData],
+                    createdAt: timestamp,
+                    updatedAt: timestamp
+                });
+            }
+        }
+
         if (username) {
             const cartRef = firestore().collection('cart').doc(username);
             const cartDoc = await cartRef.get();
@@ -162,8 +189,9 @@ const CheckoutScreen = ({ navigation, route }) => {
                   <View 
                       key={seller} 
                       style={[
-                          styles.sectionContainer,
-                          index === sellerEntries.length - 1 && styles.lastSectionContainer
+                          styles.sellerSection,
+                          index === sellerEntries.length - 1 && styles.lastSellerSection,
+                          items.length > 1 && styles.multiItemSection
                       ]}
                   >
                       <Text style={styles.sellerHeader}>{seller}</Text>
@@ -172,17 +200,20 @@ const CheckoutScreen = ({ navigation, route }) => {
                               <Image source={{ uri: item.imageUrl }} style={styles.itemImage} />
                               <View style={styles.itemDetails}>
                                   <Text style={styles.itemName}>{item.productName}</Text>
-                                  <Text style={styles.itemPrice}>₱{item.price.toFixed(2)}</Text>
-                                  <Text style={styles.itemQuantity}>Qty: {item.quantity}</Text>
+                                  <View style={styles.priceQuantityRow}>
+                                      <Text style={styles.itemPrice}>₱{item.price.toFixed(2)}</Text>
+                                      <Text style={styles.itemQuantity}>Qty: {item.quantity}</Text>
+                                  </View>
                               </View>
                               <Text style={styles.itemTotal}>₱{(item.price * item.quantity).toFixed(2)}</Text>
                           </View>
                       ))}
+                      {items.length > 1 && <View style={styles.sellerBottomBorder} />}
                   </View>
               ))}
           </View>
       );
-  };
+    };
   
     return (
       <View style={styles.container}>
@@ -193,57 +224,63 @@ const CheckoutScreen = ({ navigation, route }) => {
           <Text style={styles.headerText}>Checkout</Text>
         </View>
 
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Customer Information</Text>
-            <View style={styles.row}>
-              <Text style={styles.label}>Full Name:</Text>
-              <Text style={styles.value}>{userData?.fullName || 'Not provided'}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Phone Number:</Text>
-              <Text style={styles.value}>{userData?.phone || 'Not provided'}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Address:</Text>
-              <Text style={styles.value}>{userData?.address || 'Not provided'}</Text>
-            </View>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#11AB2F" />
           </View>
+        ) : (
+          <ScrollView contentContainerStyle={styles.scrollContainer}>
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionTitle}>Customer Information</Text>
+              <View style={styles.row}>
+                <Text style={styles.label}>Full Name:</Text>
+                <Text style={styles.value}>{userData?.fullName || 'Not provided'}</Text>
+              </View>
+              <View style={styles.row}>
+                <Text style={styles.label}>Phone Number:</Text>
+                <Text style={styles.value}>{userData?.phone || 'Not provided'}</Text>
+              </View>
+              <View style={styles.row}>
+                <Text style={styles.label}>Address:</Text>
+                <Text style={styles.value}>{userData?.address || 'Not provided'}</Text>
+              </View>
+            </View>
 
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Order Items ({cartItems.length})</Text>
-            {cartItems.length > 0 ? (
-              renderOrderItems()
-            ) : (
-              <Text style={styles.noItemsText}>No items selected for checkout</Text>
-            )}
-          </View>
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionTitle}>Order Items ({cartItems.length})</Text>
+              {cartItems.length > 0 ? (
+                renderOrderItems()
+              ) : (
+                <Text style={styles.noItemsText}>No items selected for checkout</Text>
+              )}
+            </View>
 
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Payment Method</Text>
-            <View style={styles.paymentMethod}>
-              <Text style={styles.paymentText}>Cash on Delivery</Text>
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionTitle}>Payment Method</Text>
+              <View style={styles.paymentMethod}>
+                <Text style={styles.paymentText}>Cash on Delivery</Text>
+              </View>
             </View>
-          </View>
 
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Payment Details</Text>
-            <View style={styles.paymentRow}>
-              <Text style={styles.paymentLabel}>
-                Subtotal ({cartItems.length} {cartItems.length === 1 ? 'item' : 'items'}):
-              </Text>
-              <Text style={styles.paymentValue}>₱{calculateSubtotal().toFixed(2)}</Text>
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionTitle}>Payment Details</Text>
+              <View style={styles.paymentRow}>
+                <Text style={styles.paymentLabel}>
+                  Subtotal ({cartItems.length} {cartItems.length === 1 ? 'item' : 'items'}):
+                </Text>
+                <Text style={styles.paymentValue}>₱{calculateSubtotal().toFixed(2)}</Text>
+              </View>
+              <View style={styles.paymentRow}>
+                <Text style={styles.paymentLabel}>Shipping Fee:</Text>
+                <Text style={styles.paymentValue}>₱80.00</Text>
+              </View>
+              <View style={[styles.paymentRow, styles.totalRow]}>
+                <Text style={[styles.paymentLabel, styles.totalLabel]}>Total Payment:</Text>
+                <Text style={[styles.paymentValue, styles.totalValue]}>₱{calculateTotal().toFixed(2)}</Text>
+              </View>
             </View>
-            <View style={styles.paymentRow}>
-              <Text style={styles.paymentLabel}>Shipping Fee:</Text>
-              <Text style={styles.paymentValue}>₱80.00</Text>
-            </View>
-            <View style={[styles.paymentRow, styles.totalRow]}>
-              <Text style={[styles.paymentLabel, styles.totalLabel]}>Total Payment:</Text>
-              <Text style={[styles.paymentValue, styles.totalValue]}>₱{calculateTotal().toFixed(2)}</Text>
-            </View>
-          </View>
-        </ScrollView>
+          </ScrollView>
+        )}
 
         <View style={styles.buttonContainer}>
           <TouchableOpacity 
@@ -301,16 +338,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 8,
     padding: 15,
-    marginVertical: 2,
+
+  marginVertical: 2,
     borderBottomWidth: 1,
     borderBottomColor: '#ccc'
-},
-lastSectionContainer: {
+  },
+  lastSectionContainer: {
     borderBottomWidth: 0, 
-},
-itemsMainContainer: {
+  },
+  itemsMainContainer: {
     marginBottom: 10,
-},
+  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
@@ -318,13 +356,10 @@ itemsMainContainer: {
     color: '#11AB2F',
   },
   sellerHeader: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 16,
+    fontWeight: 'bold',
     color: '#333',
-    marginBottom: 15,
     paddingBottom: 5,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
   },
   row: {
     flexDirection: 'row',
@@ -342,35 +377,43 @@ itemsMainContainer: {
   },
   itemContainer: {
     flexDirection: 'row',
-    marginBottom: 15,
     alignItems: 'center',
+    paddingVertical: 2,
   },
   itemImage: {
-    width: 60,
-    height: 60,
+    width: 70,
+    height: 70,
     borderRadius: 8,
-    marginRight: 10,
+    marginRight: 12,
   },
   itemDetails: {
     flex: 1,
+    justifyContent: 'center', 
   },
   itemName: {
-    fontSize: 14,
+    fontSize: 15, 
     fontWeight: '600',
+    marginBottom: 6, 
+  },
+  priceQuantityContainer: { 
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16, 
   },
   itemPrice: {
-    fontSize: 12,
+    fontSize: 14, 
     color: '#11AB2F',
-    marginTop: 2,
+    fontWeight: '500', 
   },
   itemQuantity: {
-    fontSize: 12,
+    fontSize: 14, 
     color: '#5D5C5C',
-    marginTop: 2,
   },
   itemTotal: {
-    fontSize: 14,
+    fontSize: 16, 
     fontWeight: 'bold',
+    minWidth: 80, 
+    textAlign: 'right',
   },
   noItemsText: {
     textAlign: 'center',
@@ -435,6 +478,20 @@ itemsMainContainer: {
     color: 'white',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  sellerSection: {
+    width: '100%',
+    backgroundColor: 'white',
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  lastSellerSection: {
+    marginBottom: 0,
+  },
+  sellerBottomBorder: {
+    height: 1,
+    backgroundColor: '#eee',
+    marginTop: 10,
   },
 });
 

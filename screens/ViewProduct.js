@@ -8,22 +8,27 @@ const ViewProduct = ({ route }) => {
   const [quantity, setQuantity] = useState(1);
   const [sameShopProducts, setSameShopProducts] = useState([]);
   const [currentUsername, setCurrentUsername] = useState('');
+  const [userProfileComplete, setUserProfileComplete] = useState(false);
 
   useEffect(() => {
-    const fetchUsername = async () => {
+    const fetchUserData = async () => {
       const user = auth().currentUser;
       if (user) {
         try {
           const userDoc = await firestore().collection('users').doc(user.uid).get();
           if (userDoc.exists) {
-            setCurrentUsername(userDoc.data().username);
+            const data = userDoc.data();
+            setCurrentUsername(data.username || '');
+            const isProfileComplete = data.fullName && data.username && data.password && data.address && data.phone;
+            setUserProfileComplete(isProfileComplete);
           }
         } catch (error) {
           console.error('Error fetching user data:', error);
         }
       }
     };
-    fetchUsername();
+
+    fetchUserData();
   }, []);
 
   useEffect(() => {
@@ -49,6 +54,19 @@ const ViewProduct = ({ route }) => {
   const decrement = () => setQuantity(prev => (prev > 1 ? prev - 1 : 1));
 
   const handleAddToCart = async () => {
+    if (!userProfileComplete) {
+      Alert.alert(
+        'Profile Incomplete',
+        'Please complete your profile in Settings before adding items to cart',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Go to Settings', onPress: () => navigation.navigate('SettingsScreen') }
+        ],
+        { cancelable: false }
+      );
+      return;
+    }
+
     if (currentUsername === product.username) {
       Alert.alert(
         'Cannot Add Product',
@@ -182,8 +200,14 @@ const ViewProduct = ({ route }) => {
       </ScrollView>
 
       <View style={styles.cartRow}>
-        <TouchableOpacity style={styles.addToCart} onPress={handleAddToCart} disabled={quantity <= 0}>
-          <Text style={styles.addToCartText}>Add to Cart</Text>
+        <TouchableOpacity 
+          style={[styles.addToCart, !userProfileComplete && styles.disabledButton]} 
+          onPress={handleAddToCart} 
+          disabled={quantity <= 0 || !userProfileComplete}
+        >
+          <Text style={styles.addToCartText}>
+            {!userProfileComplete ? 'Complete Profile to Add to Cart' : 'Add to Cart'}
+          </Text>
         </TouchableOpacity>
 
         <View style={styles.quantityContainer}>
@@ -377,10 +401,13 @@ const styles = StyleSheet.create({
   addToCart: {
     backgroundColor: '#11AB2F',
     paddingVertical: 12,
-    paddingHorizontal: 50,
+    paddingHorizontal: 20,
     borderRadius: 10,
     alignItems: 'center',
     flex: 1,
+  },
+  disabledButton: {
+    backgroundColor: '#cccccc',
   },
   addToCartText: {
     color: '#fff',

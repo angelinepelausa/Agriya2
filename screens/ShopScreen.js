@@ -54,7 +54,7 @@ const ShopScreen = () => {
   };
 
   const handleStatusPress = (status) => {
-    navigation.navigate('SellerOrders', { 
+    navigation.navigate('SellerOrder', { 
       initialTab: status.toLowerCase()
     });
   };
@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
   addProductButton: {
     backgroundColor: '#11AB2F',
     paddingVertical: 8,
-    paddingHorizontal: 5,
+    paddingHorizontal: 12,
     borderRadius: 10,
   },
   addProductButtonText: {
