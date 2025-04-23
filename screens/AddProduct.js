@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {View ,Text ,TextInput , TouchableOpacity, StyleSheet, Dimensions, ScrollView, Modal, TouchableWithoutFeedback, Keyboard, Image} from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import firestore from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
 import { launchImageLibrary } from 'react-native-image-picker';
@@ -10,14 +10,16 @@ const { height } = Dimensions.get('window');
 
 const AddProduct = () => {
   const navigation = useNavigation();
+  const route = useRoute();
+  const { productToEdit, pageTitle = 'Add Product' } = route.params || {};
 
-  const [productName, setProductName] = useState('');
-  const [description, setDescription] = useState('');
-  const [price, setPrice] = useState('');
-  const [unit, setUnit] = useState('');
-  const [category, setCategory] = useState('');
-  const [stock, setStock] = useState('');
-  const [imageUri, setImageUri] = useState('');
+  const [productName, setProductName] = useState(productToEdit?.productName || '');
+  const [description, setDescription] = useState(productToEdit?.description || '');
+  const [price, setPrice] = useState(productToEdit?.price?.toString() || '');
+  const [unit, setUnit] = useState(productToEdit?.unit || '');
+  const [category, setCategory] = useState(productToEdit?.category || '');
+  const [stock, setStock] = useState(productToEdit?.stock?.toString() || '');
+  const [imageUri, setImageUri] = useState(productToEdit?.imageUrl || '');
   const [uploading, setUploading] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
@@ -77,28 +79,7 @@ const AddProduct = () => {
     return json.secure_url;
   };
 
-  const getNextProductId = async () => {
-    try {
-      const productsSnapshot = await firestore().collection('products').orderBy('productId').get();
-      const productIds = productsSnapshot.docs.map(doc => doc.data().productId);
-      
-      let nextId = 1;
-      for (const id of productIds) {
-        if (id === nextId) {
-          nextId++;
-        } else {
-          break;
-        }
-      }
-  
-      return nextId;
-    } catch (error) {
-      console.error('Error fetching product IDs: ', error);
-      return 1;
-    }
-  };
-  
-  const handleAddProduct = async () => {
+  const handleSubmitProduct = async () => {
     if (!userProfileComplete) {
       setAlertMessage('Please complete your profile in Settings before adding products');
       setShowAlert(true);
@@ -135,19 +116,21 @@ const AddProduct = () => {
   
     try {
       setUploading(true);
-  
-      const imageUrl = await uploadImageToCloudinary(imageUri);
+
+      let imageUrl = imageUri;
+      if (imageUri.startsWith('http')) {
+        imageUrl = imageUri;
+      } else {
+        imageUrl = await uploadImageToCloudinary(imageUri);
+      }
   
       if (!username) {
         setAlertMessage('Please log in to add a product.');
         setShowAlert(true);
         return;
       }
-  
-      const productId = await getNextProductId();
-  
-      await firestore().collection('products').add({
-        productId,
+
+      const productData = {
         productName: trimmedName,
         description: trimmedDesc,
         price: parseFloat(trimmedPrice),
@@ -156,20 +139,53 @@ const AddProduct = () => {
         stock: parseInt(trimmedStock),
         imageUrl,
         username,
-        createdAt: firestore.FieldValue.serverTimestamp(),
-      });
+        updatedAt: firestore.FieldValue.serverTimestamp(),
+      };
+
+      if (productToEdit) {
+        await firestore().collection('products').doc(productToEdit.id).update(productData);
+        setAlertMessage('Product updated successfully!');
+      } else {
+        const productId = await getNextProductId();
+        await firestore().collection('products').add({
+          ...productData,
+          productId,
+          createdAt: firestore.FieldValue.serverTimestamp(),
+        });
+        setAlertMessage('Product added successfully!');
+      }
   
-      setAlertMessage('Product added successfully!');
       setShowAlert(true);
       navigation.goBack();
     } catch (error) {
-      console.error('Error adding product: ', error);
-      setAlertMessage('Failed to add product. Please try again.');
+      console.error('Error saving product: ', error);
+      setAlertMessage(`Failed to ${productToEdit ? 'update' : 'add'} product. Please try again.`);
       setShowAlert(true);
     } finally {
       setUploading(false);
     }
-  };  
+  };
+
+  const getNextProductId = async () => {
+    try {
+      const productsSnapshot = await firestore().collection('products').orderBy('productId').get();
+      const productIds = productsSnapshot.docs.map(doc => doc.data().productId);
+      
+      let nextId = 1;
+      for (const id of productIds) {
+        if (id === nextId) {
+          nextId++;
+        } else {
+          break;
+        }
+      }
+  
+      return nextId;
+    } catch (error) {
+      console.error('Error fetching product IDs: ', error);
+      return 1;
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -177,7 +193,7 @@ const AddProduct = () => {
         <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
           <Text style={styles.backArrow}>{'<'}</Text>
         </TouchableOpacity>
-        <Text style={styles.pageTitle}>Add Product</Text>
+        <Text style={styles.pageTitle}>{pageTitle}</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.formContainer}>
@@ -241,9 +257,7 @@ const AddProduct = () => {
               >
                 <Picker.Item label="Choose unit" value="" enabled={false} style={{ fontSize: 14, color: '#aaa' }} />
                 <Picker.Item label="kg" value="kg" />
-                <Picker.Item label="g" value="g" />
                 <Picker.Item label="L" value="L" />
-                <Picker.Item label="ml" value="ml" />
                 <Picker.Item label="pc" value="pc" />
                 <Picker.Item label="dozen" value="dozen" />
               </Picker>
@@ -278,11 +292,11 @@ const AddProduct = () => {
 
           <TouchableOpacity
             style={[styles.addButton, !userProfileComplete && styles.disabledButton]}
-            onPress={handleAddProduct}
+            onPress={handleSubmitProduct}
             disabled={uploading || !userProfileComplete}
           >
             <Text style={styles.addButtonText}>
-              {uploading ? 'Adding Product...' : 'Add Product'}
+              {uploading ? (productToEdit ? 'Updating...' : 'Adding...') : (productToEdit ? 'Update Product' : 'Add Product')}
             </Text>
           </TouchableOpacity>
         </View>

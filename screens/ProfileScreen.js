@@ -161,7 +161,7 @@ const ProfileScreen = () => {
           <View style={styles.imagesRow}>
             <TouchableOpacity 
               style={styles.imageContainer} 
-              onPress={() => navigation.navigate('PurchasesScreen', { status: 'to_pay' })}
+              onPress={() => navigation.navigate('PurchasesScreen', { initialTab: 'to_pay' })}
             >
               <Image
                 source={require('../assets/Pay.png')}
@@ -172,7 +172,7 @@ const ProfileScreen = () => {
 
             <TouchableOpacity 
               style={styles.imageContainer} 
-              onPress={() => navigation.navigate('PurchasesScreen', { status: 'to_ship' })}
+              onPress={() => navigation.navigate('PurchasesScreen', { initialTab: 'to_ship' })}
             >
               <Image
                 source={require('../assets/Ship.png')}
@@ -183,7 +183,7 @@ const ProfileScreen = () => {
 
             <TouchableOpacity 
               style={styles.imageContainer} 
-              onPress={() => navigation.navigate('PurchasesScreen', { status: 'to_receive' })}
+              onPress={() => navigation.navigate('PurchasesScreen', { initialTab: 'to_receive' })}
             >
               <Image
                 source={require('../assets/Receive.png')}
@@ -224,7 +224,7 @@ const ProfileScreen = () => {
           <Text style={styles.navText}>Marketplace</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('NotificationScreen')}>
           <Image
             source={require('../assets/Notifications.png')}
             style={styles.navImage}
@@ -401,24 +401,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    backgroundColor: 'white',
-    height: 74,
+    height: 70,
+    backgroundColor: '#fff',
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
+    borderTopColor: '#ccc',
   },
   navItem: {
     justifyContent: 'center',
     alignItems: 'center',
   },
   navImage: {
-    width: 25,
-    height: 25,
+    width: 24,
+    height: 24,
   },
   navText: {
     fontSize: 10,
-    color: '#5D5C5C',
-    marginTop: 5,
-    fontWeight: '600',
+    color: '#1B1A12',
   },
 });
 

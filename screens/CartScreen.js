@@ -261,7 +261,7 @@ const CartScreen = ({ navigation }) => {
                 <Image source={{ uri: item.imageUrl }} style={styles.cartItemImage} />
                 <View style={styles.cartItemDetails}>
                   <Text style={styles.cartItemName}>{item.productName}</Text>
-                  <Text style={styles.cartItemPrice}>₱{Number(item.price).toFixed(2)}</Text>
+                  <Text style={styles.cartItemPrice}>₱{Number(item.price).toFixed(2)} / {item.unit}</Text>
                   
                   <View style={styles.quantityContainer}>
                     <TouchableOpacity 

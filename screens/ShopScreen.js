@@ -45,18 +45,29 @@ const ShopScreen = () => {
     navigation.goBack();
   };
 
-  const handleViewShop = () => {
-    navigation.navigate('ShopDetails');
-  };
-
-  const handleAddProduct = () => {
-    navigation.navigate('AddProduct');
-  };
-
   const handleStatusPress = (status) => {
-    navigation.navigate('SellerOrder', { 
-      initialTab: status.toLowerCase()
-    });
+    navigation.navigate('SellerOrder', { initialTab: status.toLowerCase() });
+  };
+
+  const handleViewShopCategory = (category) => {
+    let tabName = '';
+    switch(category) {
+      case 'fruitsAndVegetables':
+        tabName = 'Fruits & Vegetables';
+        break;
+      case 'dairy':
+        tabName = 'Dairy';
+        break;
+      case 'grains':
+        tabName = 'Grains';
+        break;
+      case 'meatAndPoultry':
+        tabName = 'Meat & Poultry';
+        break;
+      default:
+        tabName = 'Fruits & Vegetables';
+    }
+    navigation.navigate('ViewShop', { defaultTab: tabName });
   };
 
   const renderProfileImage = () => {
@@ -67,7 +78,7 @@ const ShopScreen = () => {
         </View>
       );
     }
-    
+
     if (profileImageUrl) {
       return (
         <Image
@@ -77,7 +88,7 @@ const ShopScreen = () => {
         />
       );
     }
-    
+
     return (
       <Image
         source={require('../assets/Profile_picture.png')}
@@ -132,22 +143,34 @@ const ShopScreen = () => {
           <Text style={styles.sectionText}>My Products</Text>
 
           <View style={styles.productGrid}>
-            <TouchableOpacity style={styles.productItem}>
+            <TouchableOpacity
+              style={styles.productItem}
+              onPress={() => handleViewShopCategory('fruitsAndVegetables')}
+            >
               <Image source={require('../assets/FruitsandVegetables.png')} style={styles.productImage} />
               <Text style={styles.productLabel}>Fruits & Vegetables</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.productItem}>
+            <TouchableOpacity
+              style={styles.productItem}
+              onPress={() => handleViewShopCategory('dairy')}
+            >
               <Image source={require('../assets/Dairy.png')} style={styles.productImage} />
               <Text style={styles.productLabel}>Dairy</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.productGrid}>
-            <TouchableOpacity style={styles.productItem}>
+            <TouchableOpacity
+              style={styles.productItem}
+              onPress={() => handleViewShopCategory('grains')}
+            >
               <Image source={require('../assets/Grains.png')} style={styles.productImage} />
               <Text style={styles.productLabel}>Grains</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.productItem}>
+            <TouchableOpacity
+              style={styles.productItem}
+              onPress={() => handleViewShopCategory('meatAndPoultry')}
+            >
               <Image source={require('../assets/MeatandPoultry.png')} style={styles.productImage} />
               <Text style={styles.productLabel}>Meat & Poultry</Text>
             </TouchableOpacity>
@@ -156,7 +179,7 @@ const ShopScreen = () => {
           <View style={styles.productGrid}>
             <TouchableOpacity
               style={[styles.productItem, styles.fullWidthItem]}
-              onPress={handleAddProduct}
+              onPress={() => navigation.navigate('AddProduct')}
             >
               <View style={styles.addProductButton}>
                 <Text style={styles.addProductButtonText}>Add Product</Text>
@@ -177,12 +200,12 @@ const ShopScreen = () => {
           <Text style={styles.navText}>Marketplace</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('NotificationScreen')}>
           <Image source={require('../assets/Notifications.png')} style={styles.navImage} />
           <Text style={styles.navText}>Notifications</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('ProfileScreen')}>
           <Image source={require('../assets/ProfileGreen.png')} style={styles.navImage} />
           <Text style={styles.navText}>Profile</Text>
         </TouchableOpacity>
@@ -191,170 +214,173 @@ const ShopScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: 'rgb(240, 243, 242)',
-  },
-  topRectangle: {
-    width: '100%',
-    height: height * 0.13,
-    backgroundColor: '#11AB2F',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingTop: 40,
-  },
-  backButton: {
-    padding: 10,
-  },
-  backArrow: {
-    fontSize: 24,
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  pageTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: 'white',
-    marginLeft: 10,
-  },
-  centeredContainers: {
-    flex: 1,
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    width: '100%',
-    paddingTop: 10,
-    paddingBottom: 10,
-  },
-  shopSection: {
-    width: 337,
-    height: 120,
-    backgroundColor: '#F6FAF9',
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-  },
-  profileImage: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    borderWidth: 2,
-    borderColor: '#11AB2F',
-    marginRight: 15,
-    marginLeft: 20,
-  },
-  textButtonContainer: {
-    flexDirection: 'column',
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-  },
-  usernameText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#5D5C5C',
-    marginBottom: 10,
-  },
-  orderSection: {
-    width: 337,
-    height: 170,
-    backgroundColor: '#F6FAF9',
-    borderRadius: 10,
-    paddingTop: 15,
-    paddingHorizontal: 15,
-  },
-  orderBoxesContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginTop: 15,
-    alignItems: 'center',
-  },
-  orderBox: {
-    backgroundColor: 'rgb(240, 243, 242)',
-    borderRadius: 6,
-    width: '30%',
-    height: 90,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  orderBoxText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#5D5C5C',
-  },
-  productsSection: {
-    width: 337,
-    backgroundColor: '#F6FAF9',
-    borderRadius: 10,
-    paddingTop: 15,
-    paddingHorizontal: 15,
-    paddingBottom: 10,
-  },
-  sectionText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#5D5C5C',
-  },
-  productGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 15,
-    marginBottom: 15,
-    width: '100%',
-  },
-  productItem: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '48%',
-  },
-  fullWidthItem: {
-    width: '100%',
-  },
-  productImage: {
-    width: 50,
-    height: 50,
-    resizeMode: 'contain',
-  },
-  productLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#5D5C5C',
-    marginTop: 3,
-    textAlign: 'center',
-  },
-  addProductButton: {
-    backgroundColor: '#11AB2F',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-  },
-  addProductButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  navBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 10,
-    backgroundColor: '#F6FAF9',
-  },
-  navItem: {
-    alignItems: 'center',
-  },
-  navImage: {
-    width: 20,
-    height: 20,
-    resizeMode: 'contain',
-  },
-  navText: {
-    fontSize: 10,
-    color: '#5D5C5C',
-  },
-});
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: 'rgb(240, 243, 242)',
+    },
+    topRectangle: {
+      width: '100%',
+      height: height * 0.13,
+      backgroundColor: '#11AB2F',
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 15,
+      paddingTop: 40,
+    },
+    backButton: {
+      padding: 10,
+    },
+    backArrow: {
+      fontSize: 24,
+      color: 'white',
+      fontWeight: 'bold',
+    },
+    pageTitle: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: 'white',
+      marginLeft: 10,
+    },
+    centeredContainers: {
+      flex: 1,
+      justifyContent: 'space-around',
+      alignItems: 'center',
+      width: '100%',
+      paddingTop: 10,
+      paddingBottom: 10,
+    },
+    shopSection: {
+      width: 337,
+      height: 120,
+      backgroundColor: '#F6FAF9',
+      flexDirection: 'row',
+      justifyContent: 'flex-start',
+      alignItems: 'center',
+      borderRadius: 10,
+      paddingVertical: 10,
+      paddingHorizontal: 10,
+    },
+    profileImage: {
+      width: 70,
+      height: 70,
+      borderRadius: 35,
+      borderWidth: 2,
+      borderColor: '#11AB2F',
+      marginRight: 15,
+      marginLeft: 20,
+    },
+    textButtonContainer: {
+      flexDirection: 'column',
+      justifyContent: 'center',
+      alignItems: 'flex-start',
+    },
+    usernameText: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: '#5D5C5C',
+      marginBottom: 10,
+    },
+    orderSection: {
+      width: 337,
+      height: 170,
+      backgroundColor: '#F6FAF9',
+      borderRadius: 10,
+      paddingTop: 15,
+      paddingHorizontal: 15,
+    },
+    orderBoxesContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      width: '100%',
+      marginTop: 15,
+      alignItems: 'center',
+    },
+    orderBox: {
+      backgroundColor: 'rgb(240, 243, 242)',
+      borderRadius: 6,
+      width: '30%',
+      height: 90,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    orderBoxText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: '#5D5C5C',
+    },
+    productsSection: {
+      width: 337,
+      backgroundColor: '#F6FAF9',
+      borderRadius: 10,
+      paddingTop: 15,
+      paddingHorizontal: 15,
+      paddingBottom: 10,
+    },
+    sectionText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: '#5D5C5C',
+    },
+    productGrid: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginTop: 15,
+      marginBottom: 15,
+      width: '100%',
+    },
+    productItem: {
+      justifyContent: 'center',
+      alignItems: 'center',
+      width: '48%',
+    },
+    fullWidthItem: {
+      width: '100%',
+    },
+    productImage: {
+      width: 50,
+      height: 50,
+      resizeMode: 'contain',
+    },
+    productLabel: {
+      fontSize: 10,
+      fontWeight: '600',
+      color: '#5D5C5C',
+      marginTop: 3,
+      textAlign: 'center',
+    },
+    addProductButton: {
+      backgroundColor: '#11AB2F',
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 10,
+    },
+    addProductButtonText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: '#fff',
+    },
+    navBar: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      alignItems: 'center',
+      height: 70,
+      backgroundColor: '#fff',
+      borderTopWidth: 1,
+      borderTopColor: '#ccc',
+    },
+    navItem: {
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    navImage: {
+      width: 24,
+      height: 24,
+    },
+    navText: {
+      fontSize: 10,
+      color: '#1B1A12',
+    },
+  });
 
-export default ShopScreen;
+  export default ShopScreen;

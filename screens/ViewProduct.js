@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator} from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
 
-const ViewProduct = ({ route }) => {
+const ViewProduct = ({ route, navigation }) => {
   const { product } = route.params;
   const [quantity, setQuantity] = useState(1);
   const [sameShopProducts, setSameShopProducts] = useState([]);
   const [currentUsername, setCurrentUsername] = useState('');
   const [userProfileComplete, setUserProfileComplete] = useState(false);
+  const [shopImageUrl, setShopImageUrl] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -28,8 +30,25 @@ const ViewProduct = ({ route }) => {
       }
     };
 
+    const fetchShopImage = async () => {
+      try {
+        const sellerDoc = await firestore()
+          .collection('users')
+          .where('username', '==', product.username)
+          .get();
+        
+        if (!sellerDoc.empty) {
+          const sellerData = sellerDoc.docs[0].data();
+          setShopImageUrl(sellerData.profileImageUrl || null);
+        }
+      } catch (error) {
+        console.error('Error fetching shop image:', error);
+      }
+    };
+
     fetchUserData();
-  }, []);
+    fetchShopImage();
+  }, [product.username]);
 
   useEffect(() => {
     const fetchSameShopProducts = async () => {
@@ -39,11 +58,18 @@ const ViewProduct = ({ route }) => {
           .where('username', '==', product.username)
           .get();
 
-        const products = productsSnapshot.docs.map(doc => doc.data());
+        const products = productsSnapshot.docs.map(doc => ({
+          ...doc.data(),
+          productId: doc.id,
+          unit: doc.data().unit || 'item' 
+        }));
+        
         const filteredProducts = products.filter(item => item.productName !== product.productName);
         setSameShopProducts(filteredProducts.slice(0, 3));
+        setLoading(false);
       } catch (error) {
         console.error("Error fetching products:", error);
+        setLoading(false);
       }
     };
 
@@ -101,7 +127,8 @@ const ViewProduct = ({ route }) => {
                 price: product.price,
                 imageUrl: product.imageUrl,
                 productId: product.productId,
-                sellerUsername: product.username, 
+                sellerUsername: product.username,
+                unit: product.unit || 'item' 
               });
             }
             
@@ -114,7 +141,8 @@ const ViewProduct = ({ route }) => {
                 price: product.price,
                 imageUrl: product.imageUrl,
                 productId: product.productId,
-                sellerUsername: product.username, 
+                sellerUsername: product.username,
+                unit: product.unit || 'item' 
               }]
             });
           }
@@ -139,13 +167,21 @@ const ViewProduct = ({ route }) => {
     }
   };
 
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#11AB2F" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.imageAndDetailsContainer}>
           <Image source={{ uri: product.imageUrl }} style={styles.image} resizeMode="cover" />
           <View style={styles.details}>
-            <Text style={styles.price}>₱{Number(product.price).toFixed(2)}</Text>
+          <Text style={styles.price}>₱{Number(product.price).toFixed(2)} {product.unit ? `/ ${product.unit}` : ''}</Text>
             <Text style={styles.name}>{product.productName}</Text>
           </View>
         </View>
@@ -153,7 +189,10 @@ const ViewProduct = ({ route }) => {
         <View style={styles.sectionContainer}>
           <View style={styles.shopInfo}>
             <View style={styles.shopRow}>
-              <Image source={{ uri: product.shopImageUrl }} style={styles.shopImage} />
+              <Image 
+                source={shopImageUrl ? { uri: shopImageUrl } : require('../assets/Profile_picture.png')} 
+                style={styles.shopImage} 
+              />
               <View style={styles.shopDetails}>
                 <Text style={styles.shopName}>{product.username}</Text>
                 <View style={styles.visitShopButtonContainer}>
@@ -205,9 +244,14 @@ const ViewProduct = ({ route }) => {
           onPress={handleAddToCart} 
           disabled={quantity <= 0 || !userProfileComplete}
         >
-          <Text style={styles.addToCartText}>
-            {!userProfileComplete ? 'Complete Profile to Add to Cart' : 'Add to Cart'}
-          </Text>
+          <Text
+  style={[
+    styles.addToCartText,
+    !userProfileComplete ? styles.incompleteProfileText : styles.completeProfileText
+  ]}
+>
+  {!userProfileComplete ? 'Complete Profile to Add to Cart' : 'Add to Cart'}
+</Text>
         </TouchableOpacity>
 
         <View style={styles.quantityContainer}>
@@ -271,18 +315,15 @@ const styles = StyleSheet.create({
     color: '#1B1A12',
     marginBottom: 10,
   },
-  shopInfo: {
-    paddingHorizontal: 20,
-  },
   shopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 5,
   },
   shopImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 60,
+    height: 60,
+    borderRadius: 999,
     marginRight: 10,
   },
   shopDetails: {
@@ -365,6 +406,12 @@ const styles = StyleSheet.create({
     textAlign: 'left',
     paddingLeft: 10,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f0f3f2',
+  },
   noShopProducts: {
     fontSize: 16,
     color: '#555',
@@ -411,8 +458,13 @@ const styles = StyleSheet.create({
   },
   addToCartText: {
     color: '#fff',
-    fontSize: 16,
     fontWeight: 'bold',
+  },
+  incompleteProfileText: {
+    fontSize: 12, 
+  },
+  completeProfileText: {
+    fontSize: 16,
   },
   quantityContainer: {
     flexDirection: 'row',

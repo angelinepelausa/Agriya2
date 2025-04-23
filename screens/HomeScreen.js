@@ -132,7 +132,7 @@ const HomeScreen = () => {
           <Text style={styles.navText}>Marketplace</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('NotificationScreen')}>
           <Image source={require('../assets/Notifications.png')} style={styles.navImage} />
           <Text style={styles.navText}>Notifications</Text>
         </TouchableOpacity>

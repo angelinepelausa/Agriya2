@@ -17,7 +17,7 @@ const EmptyState = ({ message }) => (
 );
 
 const PurchasesScreen = ({ route, navigation }) => {
-  const [activeTab, setActiveTab] = useState('to_pay');
+  const [activeTab, setActiveTab] = useState(route.params?.initialTab || 'to_pay');
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentUsername, setCurrentUsername] = useState('');
@@ -50,14 +50,22 @@ const PurchasesScreen = ({ route, navigation }) => {
 
     const unsubscribe = firestore()
       .collection('orders')
-      .doc(currentUsername) 
+      .doc(currentUsername)
       .onSnapshot(
         (doc) => {
           if (doc.exists) {
             const userOrders = doc.data().orders || [];
             const filteredOrders = userOrders.filter(
               (order) => order.status === activeTab
-            );
+            ).map(order => {
+              const sellers = order.items
+                ? Array.from(new Set(order.items.map(item => item.sellerUsername)))
+                : [];
+              return {
+                ...order,
+                sellers: sellers.length > 0 ? sellers : ['Seller']
+              };
+            });
             setOrders(filteredOrders);
           } else {
             setOrders([]);
@@ -72,6 +80,56 @@ const PurchasesScreen = ({ route, navigation }) => {
 
     return () => unsubscribe();
   }, [currentUsername, activeTab]);
+
+  const restoreProductStock = async (productId, quantityToRestore) => {
+    try {
+      const productQuery = await firestore()
+        .collection('products')
+        .where('productId', '==', productId)
+        .get();
+      
+      if (productQuery.empty) {
+        console.warn(`Product with ID ${productId} not found`);
+        return;
+      }
+
+      const productDoc = productQuery.docs[0];
+      const currentStock = productDoc.data().stock;
+
+      await productDoc.ref.update({
+        stock: currentStock + quantityToRestore
+      });
+
+    } catch (error) {
+      console.error("Error restoring product stock:", error);
+    }
+  };
+
+  const updateProductsSold = async (items) => {
+    try {
+      const batch = firestore().batch();
+      
+      for (const item of items) {
+        const productQuery = await firestore()
+          .collection('products')
+          .where('productId', '==', item.productId)
+          .get();
+        
+        if (!productQuery.empty) {
+          const productDoc = productQuery.docs[0];
+          const currentSold = productDoc.data().sold || 0;
+          
+          batch.update(productDoc.ref, {
+            sold: currentSold + item.quantity
+          });
+        }
+      }
+
+      await batch.commit();
+    } catch (error) {
+      console.error("Error updating products sold:", error);
+    }
+  };
 
   const handleMarkAsReceived = async (transactionId) => {
     try {
@@ -130,6 +188,8 @@ const PurchasesScreen = ({ route, navigation }) => {
           batch.update(sellerOrderRef, { orders: updatedSellerOrders });
         }
       }
+
+      await updateProductsSold(orderToUpdate.items);
 
       await batch.commit();
       Alert.alert('Success', 'Order marked as received and completed!');
@@ -197,8 +257,12 @@ const PurchasesScreen = ({ route, navigation }) => {
         }
       }
 
+      for (const item of orderToUpdate.items) {
+        await restoreProductStock(item.productId, item.quantity);
+      }
+
       await batch.commit();
-      Alert.alert('Success', 'Order has been cancelled');
+      Alert.alert('Success', 'Order has been cancelled and stock restored');
     } catch (error) {
       console.error("Error cancelling order:", error);
       Alert.alert('Error', error.message || 'Failed to cancel order. Please try again.');
@@ -215,16 +279,22 @@ const PurchasesScreen = ({ route, navigation }) => {
       default: return 'No orders yet';
     }
   };
-  
+
+  const formatShopName = (sellers) => {
+    if (!sellers || sellers.length === 0) return 'Seller';
+    if (sellers.length === 1) return sellers[0];
+    return `${sellers[0]} + ${sellers.length - 1} more`;
+  };
+
   const renderContent = () => {
     if (loading) {
       return <ActivityIndicator size="large" color="#11AB2F" style={styles.loadingIndicator} />;
     }
-  
+
     if (orders.length === 0) {
       return <EmptyState message={getEmptyMessage()} />;
     }
-  
+
     return (
       <View style={styles.ordersContainer}>
         {orders.map(order => (
@@ -233,13 +303,7 @@ const PurchasesScreen = ({ route, navigation }) => {
             onPress={() => navigation.navigate('OrderDetails', { order })}
           >
             <View style={styles.orderCard}>
-            <Text style={styles.shopName}>
-  {order.sellers 
-    ? order.sellers.length > 1 
-      ? `${order.sellers[0]} + ${order.sellers.length - 1} more` 
-      : order.sellers[0]
-    : 'Seller'}
-</Text>
+              <Text style={styles.shopName}>{formatShopName(order.sellers)}</Text>
               {order.items.map((item, index) => (
                 <View key={`${item.productId}_${index}`} style={styles.orderItem}>
                   <Image source={{ uri: item.imageUrl }} style={styles.orderItemImage} />
@@ -280,7 +344,7 @@ const PurchasesScreen = ({ route, navigation }) => {
       </View>
     );
   };
-  
+
   return (
     <View style={styles.container}>
       <View style={styles.topRectangle}>
@@ -290,7 +354,7 @@ const PurchasesScreen = ({ route, navigation }) => {
           </TouchableOpacity>
           <Text style={styles.pageTitle}>My Purchases</Text>
         </View>
-  
+
         <View style={styles.tabsOuterContainer}>
           <ScrollView 
             horizontal 
@@ -313,7 +377,7 @@ const PurchasesScreen = ({ route, navigation }) => {
           </ScrollView>
         </View>
       </View>
-  
+
       <ScrollView contentContainerStyle={styles.contentContainer}>
         {renderContent()}
       </ScrollView>

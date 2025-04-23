@@ -52,7 +52,7 @@ const MarketplaceScreen = () => {
             <View style={styles.textContainer}>
               <Text style={styles.productName}>{item.productName}</Text>
               <Text style={styles.shopName}>{item.username}</Text>
-              <Text style={styles.price}>₱{Number(item.price).toFixed(2)}</Text>
+              <Text style={styles.price}>₱{Number(item.price).toFixed(2)} / {item.unit}</Text>
             </View>
           </TouchableOpacity>
         ))}
@@ -112,7 +112,7 @@ const MarketplaceScreen = () => {
           <Image source={require('../assets/MarketplaceGreen.png')} style={styles.navImage} />
           <Text style={[styles.navText, { color: '#11AB2F' }]}>Marketplace</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('NotificationScreen')}>
           <Image source={require('../assets/Notifications.png')} style={styles.navImage} />
           <Text style={styles.navText}>Notifications</Text>
         </TouchableOpacity>
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   navBar: {
     position: 'absolute',
     bottom: 0,
-    height: 60,
+    height: 70,
     width: '100%',
     backgroundColor: '#fff',
     borderTopWidth: 1,

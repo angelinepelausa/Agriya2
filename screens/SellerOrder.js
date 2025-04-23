@@ -17,7 +17,7 @@ const EmptyState = ({ message }) => (
 );
 
 const SellerOrder = ({ route, navigation }) => {
-  const [activeTab, setActiveTab] = useState('upcoming');
+  const [activeTab, setActiveTab] = useState(route.params?.initialTab || 'upcoming');
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentUsername, setCurrentUsername] = useState('');
@@ -73,10 +73,40 @@ const SellerOrder = ({ route, navigation }) => {
     return () => unsubscribe();
   }, [currentUsername, activeTab]);
 
+  const restoreProductStock = async (productId, quantityToRestore) => {
+    try {
+      const productQuery = await firestore()
+        .collection('products')
+        .where('productId', '==', productId)
+        .get();
+      
+      if (productQuery.empty) {
+        console.warn(`Product with ID ${productId} not found`);
+        return;
+      }
+
+      const productDoc = productQuery.docs[0];
+      const currentStock = productDoc.data().stock;
+
+      await productDoc.ref.update({
+        stock: currentStock + quantityToRestore
+      });
+
+    } catch (error) {
+      console.error("Error restoring product stock:", error);
+    }
+  };
+
   const handleStatusUpdate = async (transactionId, newStatus) => {
     try {
-      console.log(`Updating order ${transactionId} to ${newStatus.sellerStatus} (seller) and ${newStatus.mainStatus} (main)`);
-      
+      const orderToUpdate = orders.find(order => order.transactionId === transactionId);
+      if (!orderToUpdate) {
+        Alert.alert('Error', 'Order not found');
+        return;
+      }
+
+      const batch = firestore().batch();
+
       const sellerDocRef = firestore().collection('sellerOrders').doc(currentUsername);
       const sellerDoc = await sellerDocRef.get();
 
@@ -84,16 +114,12 @@ const SellerOrder = ({ route, navigation }) => {
         const updatedSellerOrders = sellerDoc.data().orders.map(order => 
           order.transactionId === transactionId ? { ...order, status: newStatus.sellerStatus } : order
         );
-        
-        await sellerDocRef.update({ orders: updatedSellerOrders });
-        console.log("✅ Updated seller's order status");
+        batch.update(sellerDocRef, { orders: updatedSellerOrders });
       }
 
       const allOrdersDocs = await firestore().collection('orders').get();
       
       let foundOrder = false;
-      const batch = firestore().batch();
-
       allOrdersDocs.forEach(userDoc => {
         const userOrders = userDoc.data().orders || [];
         const updatedOrders = userOrders.map(order => {
@@ -109,16 +135,16 @@ const SellerOrder = ({ route, navigation }) => {
         }
       });
 
-      if (foundOrder) {
-        await batch.commit();
-        console.log("✅ Updated main orders collection status");
-        Alert.alert('Success', newStatus.successMessage);
-      } else {
-        console.log("❌ No matching order found in any user's orders");
-        Alert.alert('Error', `Order ${transactionId} not found in main database`);
+      if (newStatus.sellerStatus === 'cancelled') {
+        for (const item of orderToUpdate.items) {
+          await restoreProductStock(item.productId, item.quantity);
+        }
       }
+
+      await batch.commit();
+      Alert.alert('Success', newStatus.successMessage);
     } catch (error) {
-      console.error("🔥 Error updating order status:", error);
+      console.error("Error updating order status:", error);
       Alert.alert('Error', `Failed to update order status: ${error.message}`);
     }
   };

@@ -66,6 +66,35 @@ const CheckoutScreen = ({ navigation, route }) => {
     const calculateSubtotal = () => cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
     const calculateTotal = () => calculateSubtotal() + 80;
 
+    const updateProductStock = async (productId, quantityToDeduct) => {
+      try {
+        const productQuery = await firestore()
+          .collection('products')
+          .where('productId', '==', productId)
+          .get();
+        
+        if (productQuery.empty) {
+          console.warn(`Product with ID ${productId} not found`);
+          return;
+        }
+
+        const productDoc = productQuery.docs[0];
+        const currentStock = productDoc.data().stock;
+
+        if (currentStock < quantityToDeduct) {
+          console.warn(`Insufficient stock for product ${productId}`);
+          return;
+        }
+
+        await productDoc.ref.update({
+          stock: currentStock - quantityToDeduct
+        });
+
+      } catch (error) {
+        console.error("Error updating product stock:", error);
+      }
+    };
+
     const handlePlaceOrder = async () => {
       try {
         const user = auth().currentUser;
@@ -152,6 +181,10 @@ const CheckoutScreen = ({ navigation, route }) => {
             }
         }
 
+        for (const item of cartItems) {
+          await updateProductStock(item.productId, item.quantity);
+        }
+
         if (username) {
             const cartRef = firestore().collection('cart').doc(username);
             const cartDoc = await cartRef.get();
@@ -201,7 +234,7 @@ const CheckoutScreen = ({ navigation, route }) => {
                               <View style={styles.itemDetails}>
                                   <Text style={styles.itemName}>{item.productName}</Text>
                                   <View style={styles.priceQuantityRow}>
-                                      <Text style={styles.itemPrice}>₱{item.price.toFixed(2)}</Text>
+                                      <Text style={styles.itemPrice}>₱{item.price.toFixed(2)} / {item.unit}</Text>
                                       <Text style={styles.itemQuantity}>Qty: {item.quantity}</Text>
                                   </View>
                               </View>
