@@ -20,7 +20,10 @@ const MarketplaceScreen = () => {
           .where('category', '==', activeCategory)
           .get();
 
-        const productList = querySnapshot.docs.map(doc => doc.data());
+        const productList = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
         setProducts(productList);
       } catch (error) {
         console.error('Error fetching products: ', error);
@@ -52,7 +55,10 @@ const MarketplaceScreen = () => {
             <View style={styles.textContainer}>
               <Text style={styles.productName}>{item.productName}</Text>
               <Text style={styles.shopName}>{item.username}</Text>
-              <Text style={styles.price}>₱{Number(item.price).toFixed(2)} / {item.unit}</Text>
+              <View style={styles.priceRow}>
+                <Text style={styles.price}>₱{Number(item.price).toFixed(2)} / {item.unit}</Text>
+                <Text style={styles.soldText}>{item.sold || 0} sold</Text>
+              </View>
             </View>
           </TouchableOpacity>
         ))}
@@ -249,11 +255,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginTop: 4,
+  },
   price: {
     fontSize: 13,
     color: '#11AB2F',
-    marginTop: 4,
     fontWeight: 'bold',
+  },
+  soldText: {
+    fontSize: 11,
+    color: '#888',
+    alignSelf: 'flex-end',
   },
   navBar: {
     position: 'absolute',
