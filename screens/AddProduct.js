@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {View ,Text ,TextInput , TouchableOpacity, StyleSheet, Dimensions, ScrollView, Modal, TouchableWithoutFeedback, Keyboard, Image} from 'react-native';
+import {View, Text, TextInput, TouchableOpacity, StyleSheet, Dimensions, ScrollView, Modal, TouchableWithoutFeedback, Keyboard, Image} from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import firestore from '@react-native-firebase/firestore';
@@ -36,8 +36,8 @@ const AddProduct = () => {
             const data = userDoc.data();
             if (data.username) {
               setUsername(data.username);
-              const isProfileComplete = data.fullName && data.username && data.password && data.address && data.phone;
-              setUserProfileComplete(isProfileComplete);
+              const isComplete = data.fullName && data.username && data.password && data.address && data.phone;
+              setUserProfileComplete(!!isComplete);
             }
           }
         } catch (error) {
@@ -49,9 +49,7 @@ const AddProduct = () => {
     fetchUserData();
   }, []);
 
-  const handleBackPress = () => {
-    navigation.goBack();
-  };
+  const handleBackPress = () => navigation.goBack();
 
   const handleChooseImage = async () => {
     const result = await launchImageLibrary({ mediaType: 'photo' });
@@ -91,43 +89,27 @@ const AddProduct = () => {
     const trimmedDesc = description.trim();
     const trimmedPrice = price.trim();
     const trimmedStock = stock.trim();
-  
-    if (
-      !trimmedName ||
-      !trimmedDesc ||
-      !trimmedPrice ||
-      !unit ||
-      !category ||
-      !trimmedStock ||
-      !imageUri
-    ) {
+
+    if (!trimmedName || !trimmedDesc || !trimmedPrice || !unit || !category || !trimmedStock || !imageUri) {
       setAlertMessage('Please fill in all fields including the image');
       setShowAlert(true);
       return;
     }
-  
+
     if (isNaN(trimmedPrice) || isNaN(trimmedStock)) {
       setAlertMessage('Price and Stock must be numeric values.');
       setShowAlert(true);
       return;
     }
-  
+
     if (uploading) return;
-  
+
     try {
       setUploading(true);
 
       let imageUrl = imageUri;
-      if (imageUri.startsWith('http')) {
-        imageUrl = imageUri;
-      } else {
+      if (!imageUri.startsWith('http')) {
         imageUrl = await uploadImageToCloudinary(imageUri);
-      }
-  
-      if (!username) {
-        setAlertMessage('Please log in to add a product.');
-        setShowAlert(true);
-        return;
       }
 
       const productData = {
@@ -154,11 +136,11 @@ const AddProduct = () => {
         });
         setAlertMessage('Product added successfully!');
       }
-  
+
       setShowAlert(true);
       navigation.goBack();
     } catch (error) {
-      console.error('Error saving product: ', error);
+      console.error('Error saving product:', error);
       setAlertMessage(`Failed to ${productToEdit ? 'update' : 'add'} product. Please try again.`);
       setShowAlert(true);
     } finally {
@@ -170,7 +152,6 @@ const AddProduct = () => {
     try {
       const productsSnapshot = await firestore().collection('products').orderBy('productId').get();
       const productIds = productsSnapshot.docs.map(doc => doc.data().productId);
-      
       let nextId = 1;
       for (const id of productIds) {
         if (id === nextId) {
@@ -179,10 +160,9 @@ const AddProduct = () => {
           break;
         }
       }
-  
       return nextId;
     } catch (error) {
-      console.error('Error fetching product IDs: ', error);
+      console.error('Error fetching product IDs:', error);
       return 1;
     }
   };
