@@ -13,41 +13,50 @@ const SignupScreen = ({ navigation }) => {
   const [emailStatus, setEmailStatus] = useState('');
   const [usernameStatus, setUsernameStatus] = useState('');
   const [passwordStatus, setPasswordStatus] = useState('');
+  const [focusedField, setFocusedField] = useState(null);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
-      checkAvailability(email, username);
+      if (focusedField === 'email') {
+        checkEmailAvailability(email);
+      } else if (focusedField === 'username') {
+        checkUsernameAvailability(username);
+      }
     }, 500);
 
     return () => clearTimeout(timeout);
-  }, [email, username]);
+  }, [email, username, focusedField]);
 
   useEffect(() => {
-    if (!password) {
-      setPasswordStatus('');
-    } else if (!validatePassword(password)) {
-      setPasswordStatus('Password too weak');
-    } else {
-      setPasswordStatus('Password is strong');
+    if (focusedField === 'password') {
+      if (!password) {
+        setPasswordStatus('');
+      } else if (!validatePassword(password)) {
+        setPasswordStatus('Password too weak');
+      } else {
+        setPasswordStatus('Password is strong');
+      }
     }
-  }, [password]);
+  }, [password, focusedField]);
 
-  const checkAvailability = async (emailVal, usernameVal) => {
-    const usersRef = firestore().collection('users');
-
-    if (emailVal) {
-      const emailCheck = await usersRef.where('email', '==', emailVal).get();
-      setEmailStatus(!emailCheck.empty ? 'Email already in use' : 'Email available');
-    } else {
+  const checkEmailAvailability = async (emailVal) => {
+    if (!emailVal) {
       setEmailStatus('');
+      return;
     }
+    const usersRef = firestore().collection('users');
+    const emailCheck = await usersRef.where('email', '==', emailVal).get();
+    setEmailStatus(!emailCheck.empty ? 'Email already in use' : 'Email available');
+  };
 
-    if (usernameVal) {
-      const usernameCheck = await usersRef.where('username', '==', usernameVal).get();
-      setUsernameStatus(!usernameCheck.empty ? 'Username taken' : 'Username available');
-    } else {
+  const checkUsernameAvailability = async (usernameVal) => {
+    if (!usernameVal) {
       setUsernameStatus('');
+      return;
     }
+    const usersRef = firestore().collection('users');
+    const usernameCheck = await usersRef.where('username', '==', usernameVal).get();
+    setUsernameStatus(!usernameCheck.empty ? 'Username taken' : 'Username available');
   };
 
   const validatePassword = (pass) => {
@@ -102,8 +111,10 @@ const SignupScreen = ({ navigation }) => {
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
+            onFocus={() => setFocusedField('email')}
+            onBlur={() => setFocusedField(null)}
           />
-          {emailStatus ? (
+          {focusedField === 'email' && emailStatus ? (
             <Text style={[styles.statusText, { color: emailStatus.includes('available') ? 'green' : 'red' }]}>
               {emailStatus}
             </Text>
@@ -118,8 +129,10 @@ const SignupScreen = ({ navigation }) => {
             value={username}
             onChangeText={setUsername}
             autoCapitalize="none"
+            onFocus={() => setFocusedField('username')}
+            onBlur={() => setFocusedField(null)}
           />
-          {usernameStatus ? (
+          {focusedField === 'username' && usernameStatus ? (
             <Text style={[styles.statusText, { color: usernameStatus.includes('available') ? 'green' : 'red' }]}>
               {usernameStatus}
             </Text>
@@ -135,8 +148,10 @@ const SignupScreen = ({ navigation }) => {
             value={password}
             onChangeText={setPassword}
             autoCapitalize="none"
+            onFocus={() => setFocusedField('password')}
+            onBlur={() => setFocusedField(null)}
           />
-          {passwordStatus ? (
+          {focusedField === 'password' && passwordStatus ? (
             <Text style={[styles.statusText, { color: passwordStatus.includes('strong') ? 'green' : 'red' }]}>
               {passwordStatus}
             </Text>
