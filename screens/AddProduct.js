@@ -203,7 +203,9 @@ const AddProduct = () => {
           <TextInput
             style={styles.input}
             value={productName}
-            onChangeText={setProductName}
+            onChangeText={(text) => {
+              if (text.length <= 20) setProductName(text);
+            }}
             placeholder="Enter product name"
             editable={userProfileComplete}
           />
