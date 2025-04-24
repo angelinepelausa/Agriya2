@@ -65,7 +65,7 @@ const ViewProduct = ({ route, navigation }) => {
         }));
         
         const filteredProducts = products.filter(item => item.productName !== product.productName);
-        setSameShopProducts(filteredProducts.slice(0, 3));
+        setSameShopProducts(filteredProducts.slice(0, 6));
         setLoading(false);
       } catch (error) {
         console.error("Error fetching products:", error);
@@ -214,19 +214,23 @@ const ViewProduct = ({ route, navigation }) => {
           </View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.productList}>
-            {sameShopProducts.length > 0 ? (
-              sameShopProducts.map((shopProduct, index) => (
-                <View key={index} style={styles.shopProductWrapper}>
-                  <View style={styles.shopProductContainer}>
-                    <Image source={{ uri: shopProduct.imageUrl }} style={styles.shopProductImage} />
-                    <Text style={styles.shopProductName}>{shopProduct.productName}</Text>
-                    <Text style={styles.shopProductPrice}>₱{Number(shopProduct.price).toFixed(2)}</Text>
-                  </View>
+          {sameShopProducts.length > 0 ? (
+            sameShopProducts.map((shopProduct, index) => (
+              <TouchableOpacity
+                key={index}
+                onPress={() => navigation.push('ViewProduct', { product: shopProduct })}
+                style={styles.shopProductWrapper}
+              >
+                <View style={styles.shopProductContainer}>
+                  <Image source={{ uri: shopProduct.imageUrl }} style={styles.shopProductImage} />
+                  <Text style={styles.shopProductName}>{shopProduct.productName}</Text>
+                  <Text style={styles.shopProductPrice}>₱{Number(shopProduct.price).toFixed(2)}</Text>
                 </View>
-              ))
-            ) : (
-              <Text style={styles.noShopProducts}>No products from this shop available.</Text>
-            )}
+              </TouchableOpacity>
+            ))
+          ) : (
+            <Text style={styles.noShopProducts}>No products from this shop available.</Text>
+          )}
           </ScrollView>
         </View>
 
@@ -245,13 +249,13 @@ const ViewProduct = ({ route, navigation }) => {
           disabled={quantity <= 0 || !userProfileComplete}
         >
           <Text
-  style={[
-    styles.addToCartText,
-    !userProfileComplete ? styles.incompleteProfileText : styles.completeProfileText
-  ]}
->
-  {!userProfileComplete ? 'Complete Profile to Add to Cart' : 'Add to Cart'}
-</Text>
+            style={[
+              styles.addToCartText,
+              !userProfileComplete ? styles.incompleteProfileText : styles.completeProfileText
+            ]}
+          >
+            {!userProfileComplete ? 'Complete Profile to Add to Cart' : 'Add to Cart'}
+          </Text>
         </TouchableOpacity>
 
         <View style={styles.quantityContainer}>

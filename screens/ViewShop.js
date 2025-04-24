@@ -112,7 +112,6 @@ const ViewShop = () => {
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>No products in this category</Text>
           <TouchableOpacity style={styles.addButton} onPress={handleAddProduct}>
-            <Text style={styles.addButtonText}>Add Product</Text>
           </TouchableOpacity>
         </View>
       );
@@ -184,6 +183,10 @@ const ViewShop = () => {
       <View style={styles.contentContainer}>
         {renderProducts()}
       </View>
+
+      <TouchableOpacity style={styles.floatingAddButton} onPress={handleAddProduct}>
+        <Text style={styles.floatingAddButtonText}>+</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -273,14 +276,26 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 20,
   },
-  addButton: {
+  floatingAddButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
     backgroundColor: '#11AB2F',
-    padding: 15,
-    borderRadius: 8,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
   },
-  addButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
+  floatingAddButtonText: {
+    color: '#fff',
+    fontSize: 32,
+    lineHeight: 34,
+    marginBottom: 2,
   },
   productsGrid: {
     flexDirection: 'row',
@@ -330,7 +345,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 2,
   },
   editButton: {
-    backgroundColor: '#3498db',
+    backgroundColor: '#11AB2F',
   },
   deleteButton: {
     backgroundColor: '#e74c3c',
