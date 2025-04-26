@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator} from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
 
@@ -11,6 +11,8 @@ const ViewProduct = ({ route, navigation }) => {
   const [userProfileComplete, setUserProfileComplete] = useState(false);
   const [shopImageUrl, setShopImageUrl] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const productId = product.productId || product.id;
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -60,7 +62,8 @@ const ViewProduct = ({ route, navigation }) => {
 
         const products = productsSnapshot.docs.map(doc => ({
           ...doc.data(),
-          productId: doc.id,
+          id: doc.id,
+          productId: doc.id, 
           unit: doc.data().unit || 'item' 
         }));
         
@@ -75,6 +78,40 @@ const ViewProduct = ({ route, navigation }) => {
 
     fetchSameShopProducts();
   }, [product.username, product.productName]);
+
+  useEffect(() => {
+    const trackProductView = async () => {
+      if (!currentUsername || !productId) return;
+      
+      try {
+        const userQuery = await firestore()
+          .collection('users')
+          .where('username', '==', currentUsername)
+          .get();
+  
+        if (!userQuery.empty) {
+          const userDoc = userQuery.docs[0];
+          const userData = userDoc.data();
+          let recentlyViewed = userData.recentlyViewed || [];
+          
+          recentlyViewed = recentlyViewed.filter(id => id !== productId);
+          recentlyViewed.unshift(productId);
+          recentlyViewed = recentlyViewed.slice(0, 10);
+          
+          await firestore()
+            .collection('users')
+            .doc(userDoc.id)
+            .update({
+              recentlyViewed: recentlyViewed
+            });
+        }
+      } catch (error) {
+        console.error('Error tracking product view:', error);
+      }
+    };
+  
+    trackProductView();
+  }, [currentUsername, productId]);
 
   const increment = () => setQuantity(prev => prev + 1);
   const decrement = () => setQuantity(prev => (prev > 1 ? prev - 1 : 1));

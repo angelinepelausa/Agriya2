@@ -197,10 +197,16 @@ const ProfileScreen = () => {
         <View style={styles.activitiesContainer}>
           <Text style={styles.sectionText}>Other Activities</Text>
           <View style={styles.buttonRow}>
-            <TouchableOpacity style={styles.activityButton}>
-              <Text style={styles.activityButtonText}>Recently Viewed</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.activityButton}>
+          <TouchableOpacity 
+            style={styles.activityButton}
+            onPress={() => navigation.navigate('RecentlyViewed')}
+          >
+            <Text style={styles.activityButtonText}>Recently Viewed</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+              style={styles.activityButton}
+              onPress={() => navigation.navigate('BuyAgain')}
+            >
               <Text style={styles.activityButtonText}>Buy Again</Text>
             </TouchableOpacity>
           </View>

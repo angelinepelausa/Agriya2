@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Image, TextInput, TouchableOpacity, Dimensions, Text, ScrollView, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, Image, TouchableOpacity, Dimensions, Text, TextInput, ScrollView, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import firestore from '@react-native-firebase/firestore';
 
@@ -19,18 +19,21 @@ const MarketplaceScreen = () => {
           .collection('products')
           .where('category', '==', activeCategory)
           .get();
-
+  
         const productList = querySnapshot.docs.map(doc => ({
           id: doc.id,
+          productId: doc.id,
           ...doc.data()
         }));
+  
+        productList.sort((a, b) => (b.sold || 0) - (a.sold || 0));
         setProducts(productList);
       } catch (error) {
         console.error('Error fetching products: ', error);
       }
       setLoading(false);
     };
-
+  
     fetchProducts();
   }, [activeCategory]);
 
@@ -45,11 +48,16 @@ const MarketplaceScreen = () => {
 
     return (
       <View style={styles.productsContainer}>
-        {products.map((item, index) => (
+        {products.map((item) => (
           <TouchableOpacity
-            key={index}
+            key={item.id}
             style={styles.productBox}
-            onPress={() => navigation.navigate('ViewProduct', { product: item })}
+            onPress={() => navigation.navigate('ViewProduct', { 
+              product: {
+                ...item,
+                productId: item.id 
+              }
+            })}
           >
             <Image source={{ uri: item.imageUrl }} style={styles.productImage} resizeMode="cover" />
             <View style={styles.textContainer}>

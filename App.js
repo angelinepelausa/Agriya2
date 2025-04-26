@@ -13,6 +13,8 @@ import OrderDetails from './screens/OrderDetails';
 import ViewProduct from './screens/ViewProduct';
 import NotificationScreen from './screens/NotificationScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import RecentlyViewed from './screens/RecentlyViewed';
+import BuyAgain from './screens/BuyAgain';
 import SettingsScreen from './screens/SettingsScreen';
 import ShopScreen from './screens/ShopScreen';
 import ViewShop from './screens/ViewShop';
@@ -37,6 +39,8 @@ const App = () => {
         <Stack.Screen name="ViewProduct" component={ViewProduct} />
         <Stack.Screen name="NotificationScreen" component={NotificationScreen} />
         <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
+        <Stack.Screen name="RecentlyViewed" component={RecentlyViewed} />
+        <Stack.Screen name="BuyAgain" component={BuyAgain} />
         <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
         <Stack.Screen name="ShopScreen" component={ShopScreen} />
         <Stack.Screen name="ViewShop" component={ViewShop} />
