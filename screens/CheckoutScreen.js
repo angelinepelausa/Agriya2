@@ -407,6 +407,7 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 14,
     flex: 1,
+    marginLeft: 10,
   },
   itemContainer: {
     flexDirection: 'row',

@@ -7,6 +7,7 @@ const { height } = Dimensions.get('window');
 
 const CartScreen = ({ navigation }) => {
   const [cartItems, setCartItems] = useState([]);
+  const [groupedCartItems, setGroupedCartItems] = useState({});
   const [currentUsername, setCurrentUsername] = useState('');
   const [loading, setLoading] = useState(true);
   const [editingProductId, setEditingProductId] = useState(null);
@@ -40,8 +41,19 @@ const CartScreen = ({ navigation }) => {
             const cartData = documentSnapshot.data();
             const newCartItems = cartData.products || [];
             setCartItems(newCartItems);
+            
+            const grouped = newCartItems.reduce((acc, item) => {
+              if (!acc[item.sellerUsername]) {
+                acc[item.sellerUsername] = [];
+              }
+              acc[item.sellerUsername].push(item);
+              return acc;
+            }, {});
+            
+            setGroupedCartItems(grouped);
           } else {
             setCartItems([]);
+            setGroupedCartItems({});
           }
           setLoading(false);
         }, error => {
@@ -129,7 +141,7 @@ const CartScreen = ({ navigation }) => {
     }
   
     const newQuantity = parseInt(text);
-    if (!isNaN(newQuantity) && newQuantity >= 1) {
+    if (!isNaN(newQuantity)) {
       updateCartItemQuantity(productId, newQuantity);
     }
   };  
@@ -242,53 +254,55 @@ const CartScreen = ({ navigation }) => {
             <Text style={styles.emptyCartText}>Your cart is empty</Text>
           </View>
         ) : (
-          cartItems.map((item, index) => (
-            <View key={index} style={styles.cartItemContainer}>
+          Object.keys(groupedCartItems).map((sellerUsername, sellerIndex) => (
+            <View key={sellerIndex} style={styles.sellerGroupContainer}>
               <View style={styles.sellerUsernameContainer}>
-                <Text style={styles.sellerUsername}>{item.sellerUsername}</Text>
+                <Text style={styles.sellerUsername}>{sellerUsername}</Text>
               </View>
+              
+              {groupedCartItems[sellerUsername].map((item, productIndex) => (
+                <View key={productIndex} style={styles.productRow}>
+                  <TouchableOpacity
+                    style={styles.checkbox}
+                    onPress={() => toggleItemSelection(item.productId)}
+                  >
+                    <Text style={styles.checkboxText}>
+                      {item.selected ? '☑' : '☐'}
+                    </Text>
+                  </TouchableOpacity>
 
-              <View style={styles.productRow}>
-                <TouchableOpacity
-                  style={styles.checkbox}
-                  onPress={() => toggleItemSelection(item.productId)}
-                >
-                  <Text style={styles.checkboxText}>
-                    {item.selected ? '☑' : '☐'}
-                  </Text>
-                </TouchableOpacity>
+                  <Image source={{ uri: item.imageUrl }} style={styles.cartItemImage} />
+                  <View style={styles.cartItemDetails}>
+                    <Text style={styles.cartItemName}>{item.productName}</Text>
+                    <Text style={styles.cartItemPrice}>₱{Number(item.price).toFixed(2)} / {item.unit}</Text>
+                    
+                    <View style={styles.quantityContainer}>
+                      <TouchableOpacity 
+                        style={styles.qtyButton} 
+                        onPress={() => decrementQuantity(item.productId, typeof item.quantity === 'number' ? item.quantity : previousQuantity)}
+                      >
+                        <Text style={styles.qtyText}>-</Text>
+                      </TouchableOpacity>
 
-                <Image source={{ uri: item.imageUrl }} style={styles.cartItemImage} />
-                <View style={styles.cartItemDetails}>
-                  <Text style={styles.cartItemName}>{item.productName}</Text>
-                  <Text style={styles.cartItemPrice}>₱{Number(item.price).toFixed(2)} / {item.unit}</Text>
-                  
-                  <View style={styles.quantityContainer}>
-                    <TouchableOpacity 
-                      style={styles.qtyButton} 
-                      onPress={() => decrementQuantity(item.productId, typeof item.quantity === 'number' ? item.quantity : previousQuantity)}
-                    >
-                      <Text style={styles.qtyText}>-</Text>
-                    </TouchableOpacity>
+                      <TextInput
+                        style={styles.qtyInput}
+                        value={item.quantity.toString()}
+                        onChangeText={(text) => handleQuantityChange(item.productId, text)}
+                        onBlur={() => handleQuantityBlur(item.productId)}
+                        keyboardType="number-pad"
+                        maxLength={3}
+                      />
 
-                    <TextInput
-                      style={styles.qtyInput}
-                      value={item.quantity.toString()}
-                      onChangeText={(text) => handleQuantityChange(item.productId, text)}
-                      onBlur={() => handleQuantityBlur(item.productId)}
-                      keyboardType="number-pad"
-                      maxLength={3}
-                    />
-
-                    <TouchableOpacity 
-                      style={styles.qtyButton} 
-                      onPress={() => incrementQuantity(item.productId, typeof item.quantity === 'number' ? item.quantity : previousQuantity)}
-                    >
-                      <Text style={styles.qtyText}>+</Text>
-                    </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={styles.qtyButton} 
+                        onPress={() => incrementQuantity(item.productId, typeof item.quantity === 'number' ? item.quantity : previousQuantity)}
+                      >
+                        <Text style={styles.qtyText}>+</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
-              </View>
+              ))}
             </View>
           ))
         )}
@@ -363,24 +377,32 @@ const styles = StyleSheet.create({
     fontSize: 18,
     textAlign: 'center',
   },
-  cartItemContainer: {
-    backgroundColor: 'white',
-    marginBottom: 1,
-    padding: 15,
+  sellerGroupContainer: {
+    marginTop: 5,
+    backgroundColor: '#f8f8f8',
     borderRadius: 2,
     elevation: 1,
+    overflow: 'hidden',
+    marginHorizontal: 5,
   },
   sellerUsernameContainer: {
-    marginBottom: 10,
+    backgroundColor: '#f8f8f8',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
   sellerUsername: {
     fontSize: 17,
     fontWeight: 'bold',
-    marginLeft: 35,
+    color: '#333',
   },
   productRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
   checkbox: {
     marginRight: 15,
