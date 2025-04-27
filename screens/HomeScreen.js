@@ -1,67 +1,139 @@
-import React from 'react';
-import { View, StyleSheet, Dimensions, Image, TextInput, FlatList, Text, ScrollView, TouchableOpacity} from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, StyleSheet, Dimensions, Image, TextInput, FlatList, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import firestore from '@react-native-firebase/firestore';
 
 const { height, width } = Dimensions.get('window');
 
-const stores = [
-  { id: '1', image: require('../assets/Dairy.png') },
-  { id: '2', image: require('../assets/Dairy.png') },
-  { id: '3', image: require('../assets/Dairy.png') },
-  { id: '4', image: require('../assets/Dairy.png') },
-  { id: '5', image: require('../assets/Dairy.png') },
-  { id: '6', image: require('../assets/Dairy.png') },
-  { id: '7', image: require('../assets/Dairy.png') },
-  { id: '8', image: require('../assets/Dairy.png') },
-];
-
-const featuredProducts = [
-  { id: '1', image: require('../assets/Dairy.png'), productName: 'Product 1', shopName: 'Shop 1', price: '₱12.99' },
-  { id: '2', image: require('../assets/Dairy.png'), productName: 'Product 2', shopName: 'Shop 2', price: '₱15.99' },
-  { id: '3', image: require('../assets/Dairy.png'), productName: 'Product 3', shopName: 'Shop 3', price: '₱10.99' },
-  { id: '4', image: require('../assets/Dairy.png'), productName: 'Product 4', shopName: 'Shop 4', price: '₱19.99' },
-  { id: '5', image: require('../assets/Dairy.png'), productName: 'Product 5', shopName: 'Shop 5', price: '₱14.99' },
-  { id: '6', image: require('../assets/Dairy.png'), productName: 'Product 6', shopName: 'Shop 6', price: '₱13.99' },
-];
-
-const exploreProducts = [
-  { id: '1', image: require('../assets/Dairy.png'), productName: 'Explore Product 1', shopName: 'Shop 1', price: '₱22.99' },
-  { id: '2', image: require('../assets/Dairy.png'), productName: 'Explore Product 2', shopName: 'Shop 2', price: '₱25.99' },
-  { id: '3', image: require('../assets/Dairy.png'), productName: 'Explore Product 3', shopName: 'Shop 3', price: '₱28.99' },
-  { id: '4', image: require('../assets/Dairy.png'), productName: 'Explore Product 4', shopName: 'Shop 4', price: '₱30.99' },
-  { id: '5', image: require('../assets/Dairy.png'), productName: 'Explore Product 5', shopName: 'Shop 5', price: '₱23.99' },
-  { id: '6', image: require('../assets/Dairy.png'), productName: 'Explore Product 6', shopName: 'Shop 6', price: '₱26.99' },
-];
-
 const HomeScreen = () => {
   const navigation = useNavigation();
+  const [popularStores, setPopularStores] = useState([]);
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [exploreProducts, setExploreProducts] = useState([]);
+  const [loading, setLoading] = useState({
+    stores: true,
+    featuredProducts: true,
+    exploreProducts: true,
+  });
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const usersQuery = await firestore().collection('users').get();
+        const users = usersQuery.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+    
+        const productsQuery = await firestore().collection('products').get();
+        const sellerSales = {};
+        const allProducts = [];
+    
+        productsQuery.forEach(doc => {
+          const product = doc.data();
+          allProducts.push({
+            id: doc.id,
+            ...product
+          });
+          
+          if (product.username && product.sold) {
+            if (!sellerSales[product.username]) {
+              sellerSales[product.username] = 0;
+            }
+            sellerSales[product.username] += product.sold || 0;
+          }
+        });
+    
+        const storesWithSales = users.map(user => ({
+          id: user.id,
+          username: user.username,
+          profileImageUrl: user.profileImageUrl,
+          totalSold: sellerSales[user.username] || 0
+        }));
+    
+        const sortedStores = storesWithSales.sort((a, b) => b.totalSold - a.totalSold);
+        setPopularStores(sortedStores.slice(0, 10));
+        setLoading(prev => ({...prev, stores: false}));
+    
+        const sortedFeaturedProducts = allProducts.sort((a, b) => (b.sold || 0) - (a.sold || 0));
+        const featuredProductsData = sortedFeaturedProducts.slice(0, 10);
+        setFeaturedProducts(featuredProductsData);
+        setLoading(prev => ({...prev, featuredProducts: false}));
+    
+        const featuredProductIds = featuredProductsData.map(p => p.id);
+        const nonFeaturedProducts = allProducts.filter(product => !featuredProductIds.includes(product.id));
+        const shuffledProducts = [...nonFeaturedProducts].sort(() => 0.5 - Math.random());
+        setExploreProducts(shuffledProducts.slice(0, 20));
+        setLoading(prev => ({...prev, exploreProducts: false}));
+    
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        setLoading({
+          stores: false,
+          featuredProducts: false,
+          exploreProducts: false
+        });
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const renderStore = ({ item }) => (
-    <View style={styles.storeItem}>
-      <Image source={item.image} style={styles.storeImage} resizeMode="contain" />
-    </View>
+    <TouchableOpacity 
+      style={styles.storeItem}
+      onPress={() => navigation.navigate('ShopScreen', { username: item.username })}
+    >
+      <Image 
+        source={item.profileImageUrl ? { uri: item.profileImageUrl } : require('../assets/Profile_picture.png')} 
+        style={styles.storeImage} 
+        resizeMode="cover"
+      />
+    </TouchableOpacity>
   );
 
   const renderFeaturedProduct = ({ item }) => (
-    <View style={styles.featuredItem}>
-      <Image source={item.image} style={styles.featuredImage} resizeMode="cover" />
+    <TouchableOpacity
+      style={[styles.featuredProductBox, { marginRight: 15 }]}
+      onPress={() => navigation.navigate('ViewProduct', { 
+        product: {
+          ...item,
+          productId: item.id 
+        }
+      })}
+    >
+      <Image source={{ uri: item.imageUrl }} style={styles.productImage} resizeMode="cover" />
       <View style={styles.textContainer}>
         <Text style={styles.productName}>{item.productName}</Text>
-        <Text style={styles.shopName}>{item.shopName}</Text>
-        <Text style={styles.price}>{item.price}</Text>
+        <Text style={styles.shopName}>{item.username}</Text>
+        <View style={styles.priceRow}>
+          <Text style={styles.price}>₱{Number(item.price).toFixed(2)} / {item.unit}</Text>
+          <Text style={styles.soldText}>{item.sold || 0} sold</Text>
+        </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   const renderExploreProduct = ({ item }) => (
-    <View style={styles.exploreItem}>
-      <Image source={item.image} style={styles.exploreImage} resizeMode="cover" />
+    <TouchableOpacity
+      style={styles.productBox}
+      onPress={() => navigation.navigate('ViewProduct', { 
+        product: {
+          ...item,
+          productId: item.id 
+        }
+      })}
+    >
+      <Image source={{ uri: item.imageUrl }} style={styles.productImage} resizeMode="cover" />
       <View style={styles.textContainer}>
         <Text style={styles.productName}>{item.productName}</Text>
-        <Text style={styles.shopName}>{item.shopName}</Text>
-        <Text style={styles.price}>{item.price}</Text>
+        <Text style={styles.shopName}>{item.username}</Text>
+        <View style={styles.priceRow}>
+          <Text style={styles.price}>₱{Number(item.price).toFixed(2)} / {item.unit}</Text>
+          <Text style={styles.soldText}>{item.sold || 0} sold</Text>
+        </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   return (
@@ -87,38 +159,69 @@ const HomeScreen = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.storeContainer}>
-          <Text style={styles.popularStoreText}>Popular Stores</Text>
-          <FlatList
-            data={stores}
-            renderItem={renderStore}
-            keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-          />
-        </View>
+        {loading.stores ? (
+          <ActivityIndicator size="large" color="#11AB2F" style={styles.loadingIndicator} />
+        ) : (
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Popular Stores</Text>
+            <FlatList
+              data={popularStores}
+              renderItem={renderStore}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.listContent}
+            />
+          </View>
+        )}
 
-        <View style={styles.featuredContainer}>
-          <Text style={styles.featuredText}>Featured Products</Text>
-          <FlatList
-            data={featuredProducts}
-            renderItem={renderFeaturedProduct}
-            keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-          />
-        </View>
+        {loading.featuredProducts ? (
+          <ActivityIndicator size="large" color="#11AB2F" style={styles.loadingIndicator} />
+        ) : (
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Featured Products</Text>
+            <FlatList
+              data={featuredProducts}
+              renderItem={renderFeaturedProduct}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.listContent}
+            />
+          </View>
+        )}
 
-        <View style={styles.exploreContainer}>
-          <Text style={styles.exploreText}>Explore Products</Text>
-          <FlatList
-            data={exploreProducts}
-            renderItem={renderExploreProduct}
-            keyExtractor={(item) => item.id}
-            numColumns={2}
-            scrollEnabled={false}
-          />
-        </View>
+        {loading.exploreProducts ? (
+          <ActivityIndicator size="large" color="#11AB2F" style={styles.loadingIndicator} />
+        ) : (
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Explore Products</Text>
+            <View style={styles.productsContainer}>
+              {exploreProducts.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.productBox}
+                  onPress={() => navigation.navigate('ViewProduct', { 
+                    product: {
+                      ...item,
+                      productId: item.id 
+                    }
+                  })}
+                >
+                  <Image source={{ uri: item.imageUrl }} style={styles.productImage} resizeMode="cover" />
+                  <View style={styles.textContainer}>
+                    <Text style={styles.productName}>{item.productName}</Text>
+                    <Text style={styles.shopName}>{item.username}</Text>
+                    <View style={styles.priceRow}>
+                      <Text style={styles.price}>₱{Number(item.price).toFixed(2)} / {item.unit}</Text>
+                      <Text style={styles.soldText}>{item.sold || 0} sold</Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
       </ScrollView>
 
       <View style={styles.navBar}>
@@ -173,6 +276,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     marginTop: 30,
+    marginLeft: 40,
   },
   cartContainer: {
     alignItems: 'flex-end',
@@ -199,15 +303,22 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 30,
   },
-  storeContainer: {
+  loadingIndicator: {
+    marginTop: 50,
+    marginBottom: 50,
+  },
+  sectionContainer: {
     paddingHorizontal: 22,
     marginTop: 20,
   },
-  popularStoreText: {
-    fontSize: 15,
+  listContent: {
+    paddingRight: 22,
+  },
+  sectionTitle: {
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#1B1A12',
-    marginBottom: 10,
+    marginBottom: 15,
   },
   storeItem: {
     alignItems: 'center',
@@ -216,76 +327,64 @@ const styles = StyleSheet.create({
   storeImage: {
     width: 75,
     height: 75,
-  },
-  featuredContainer: {
-    paddingHorizontal: 22,
-    marginTop: 20,
-  },
-  featuredText: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#1B1A12',
-    marginBottom: 10,
-  },
-  featuredItem: {
-    backgroundColor: '#FFFFFF',
-    width: 105,
-    height: 134,
-    marginRight: 15,
-    alignItems: 'center',
     borderRadius: 10,
+    backgroundColor: '#ddd',
   },
-  featuredImage: {
+  productsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
+  },
+  featuredProductBox: {
+    width: 165,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#eee',
+  },
+  productBox: {
+    width: '48%',
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#eee',
+  },
+  productImage: {
     width: '100%',
-    height: '60%',
+    height: 100,
     borderTopLeftRadius: 10,
     borderTopRightRadius: 10,
   },
   textContainer: {
-    paddingLeft: 10,
-    width: '100%',
-    height: '40%',
-    justifyContent: 'center',
-  },
-  productName: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginBottom: 3,
+    alignItems: 'flex-start',
+    padding: 10,
   },
   shopName: {
-    fontSize: 10,
+    fontSize: 12,
     color: '#888',
-    marginBottom: 3,
+    marginBottom: 2,
+  },
+  productName: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginTop: 4,
   },
   price: {
-    fontSize: 12,
-    fontWeight: 'bold',
+    fontSize: 13,
     color: '#11AB2F',
-  },
-  exploreContainer: {
-    paddingHorizontal: 22,
-    marginTop: 20,
-  },
-  exploreText: {
-    fontSize: 15,
     fontWeight: 'bold',
-    color: '#1B1A12',
-    marginBottom: 10,
   },
-  exploreItem: {
-    backgroundColor: '#FFFFFF',
-    width: width * 0.42,
-    height: 180,
-    marginRight: 10,
-    marginBottom: 15,
-    alignItems: 'center',
-    borderRadius: 10,
-  },
-  exploreImage: {
-    width: '100%',
-    height: '60%',
-    borderTopLeftRadius: 10,
-    borderTopRightRadius: 10,
+  soldText: {
+    fontSize: 11,
+    color: '#888',
+    alignSelf: 'flex-end',
   },
   navBar: {
     flexDirection: 'row',
