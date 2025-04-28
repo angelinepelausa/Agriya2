@@ -48,7 +48,7 @@ const SettingsScreen = ({ navigation }) => {
       Alert.alert('Error', 'Full name, username and password are required');
       return;
     }
-
+  
     setUpdating(true);
     try {
       await firestore().collection('users').doc(userUid).update({
@@ -58,14 +58,26 @@ const SettingsScreen = ({ navigation }) => {
         address,
         phone
       });
-      Alert.alert('Success', 'Profile updated successfully');
+  
+      Alert.alert(
+        'Success',
+        'Profile updated successfully',
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.navigate('ProfileScreen'),
+          },
+        ],
+        { cancelable: false }
+      );
+  
     } catch (error) {
       console.error('Error updating profile:', error);
       Alert.alert('Error', 'Failed to update profile');
     } finally {
       setUpdating(false);
     }
-  };
+  };  
 
   const handleLogout = async () => {
     try {

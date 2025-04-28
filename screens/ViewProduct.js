@@ -195,6 +195,17 @@ const ViewProduct = ({ route, navigation }) => {
     }
   };
 
+  const handleVisitShop = () => {
+    const currentUser = auth().currentUser;
+    const isCurrentUserShop = currentUser && currentUsername === product.username;
+    
+    if (isCurrentUserShop) {
+      navigation.navigate('ViewShop');
+    } else {
+      navigation.navigate('SellerShop', { username: product.username });
+    }
+  };
+
   const handleQuantityChange = (text) => {
     const newQuantity = parseInt(text);
     if (!isNaN(newQuantity) && newQuantity >= 1) {
@@ -233,9 +244,14 @@ const ViewProduct = ({ route, navigation }) => {
               <View style={styles.shopDetails}>
                 <Text style={styles.shopName}>{product.username}</Text>
                 <View style={styles.visitShopButtonContainer}>
-                  <TouchableOpacity style={styles.visitShopButton}>
-                    <Text style={styles.visitShopButtonText}>Visit Shop</Text>
-                  </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.visitShopButton}
+                  onPress={handleVisitShop}
+                >
+                  <Text style={styles.visitShopButtonText}>
+                    {currentUsername === product.username ? 'My Shop' : 'Visit Shop'}
+                  </Text>
+                </TouchableOpacity>
                 </View>
               </View>
             </View>
@@ -245,7 +261,9 @@ const ViewProduct = ({ route, navigation }) => {
         <View style={styles.sectionContainer}>
           <View style={styles.sameShopSection}>
             <Text style={styles.sameShopText}>From the same shop</Text>
-            <TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('SellerShop', { username: product.username })}
+            >
               <Text style={styles.seeAllText}>See All</Text>
             </TouchableOpacity>
           </View>
@@ -513,8 +531,8 @@ const styles = StyleSheet.create({
     paddingLeft: 10,
   },
   qtyButton: {
-    width: 35,
-    height: 35,
+    width: 40,
+    height: 40,
     borderRadius: 5,
     backgroundColor: '#11AB2F',
     justifyContent: 'center',

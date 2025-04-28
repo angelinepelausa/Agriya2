@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View , Image , TouchableOpacity , Text , TextInput , StyleSheet , Dimensions, Alert } from 'react-native';
+import { View, Image, TouchableOpacity, Text, TextInput, StyleSheet, Dimensions, Alert } from 'react-native';
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 
@@ -9,10 +9,12 @@ const SignupScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [emailStatus, setEmailStatus] = useState('');
   const [usernameStatus, setUsernameStatus] = useState('');
   const [passwordStatus, setPasswordStatus] = useState('');
+  const [confirmPasswordStatus, setConfirmPasswordStatus] = useState('');
   const [focusedField, setFocusedField] = useState(null);
 
   useEffect(() => {
@@ -38,6 +40,18 @@ const SignupScreen = ({ navigation }) => {
       }
     }
   }, [password, focusedField]);
+
+  useEffect(() => {
+    if (focusedField === 'confirmPassword') {
+      if (!confirmPassword) {
+        setConfirmPasswordStatus('');
+      } else if (confirmPassword !== password) {
+        setConfirmPasswordStatus('Passwords do not match');
+      } else {
+        setConfirmPasswordStatus('Passwords match');
+      }
+    }
+  }, [confirmPassword, password, focusedField]);
 
   const checkEmailAvailability = async (emailVal) => {
     if (!emailVal) {
@@ -65,8 +79,13 @@ const SignupScreen = ({ navigation }) => {
   };
 
   const handleSignUp = async () => {
-    if (!email || !username || !password) {
+    if (!email || !username || !password || !confirmPassword) {
       Alert.alert('Error', 'Please fill in all fields.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match.');
       return;
     }
 
@@ -158,18 +177,31 @@ const SignupScreen = ({ navigation }) => {
           ) : null}
         </View>
 
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.input}
+            placeholder="Confirm Password"
+            placeholderTextColor="#777"
+            secureTextEntry={true}
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            autoCapitalize="none"
+            onFocus={() => setFocusedField('confirmPassword')}
+            onBlur={() => setFocusedField(null)}
+          />
+          {focusedField === 'confirmPassword' && confirmPasswordStatus ? (
+            <Text style={[styles.statusText, { color: confirmPasswordStatus === 'Passwords match' ? 'green' : 'red' }]}>
+              {confirmPasswordStatus}
+            </Text>
+          ) : null}
+        </View>
+
         <TouchableOpacity
           style={styles.signInButton}
           onPress={handleSignUp}
           disabled={loading}
         >
           <Text style={styles.signInButtonText}>{loading ? 'Signing Up...' : 'Sign Up'}</Text>
-        </TouchableOpacity>
-
-        <Text style={styles.orText}>or</Text>
-
-        <TouchableOpacity style={styles.googleButton}>
-          <Text style={styles.googleButtonText}>Sign Up with Google</Text>
         </TouchableOpacity>
 
         <Text style={styles.registerText}>
@@ -246,26 +278,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#FFF',
-  },
-  orText: {
-    fontSize: 16,
-    color: '#777',
-    marginVertical: 10,
-  },
-  googleButton: {
-    width: '90%',
-    height: 50,
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: '#CCC',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 10,
-  },
-  googleButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#555',
   },
   registerText: {
     fontSize: 14,

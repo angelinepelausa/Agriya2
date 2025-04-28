@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Dimensions, Image, TextInput, FlatList, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import firestore from '@react-native-firebase/firestore';
+import auth from '@react-native-firebase/auth';
 
 const { height, width } = Dimensions.get('window');
 
@@ -79,18 +80,29 @@ const HomeScreen = () => {
     fetchData();
   }, []);
 
-  const renderStore = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.storeItem}
-      onPress={() => navigation.navigate('ShopScreen', { username: item.username })}
-    >
-      <Image 
-        source={item.profileImageUrl ? { uri: item.profileImageUrl } : require('../assets/Profile_picture.png')} 
-        style={styles.storeImage} 
-        resizeMode="cover"
-      />
-    </TouchableOpacity>
-  );
+  const renderStore = ({ item }) => {
+    const currentUser = auth().currentUser;
+    const isCurrentUserShop = currentUser && item.id === currentUser.uid;
+    
+    return (
+      <TouchableOpacity 
+        style={styles.storeItem}
+        onPress={() => {
+          if (isCurrentUserShop) {
+            navigation.navigate('ViewShop');
+          } else {
+            navigation.navigate('SellerShop', { username: item.username });
+          }
+        }}
+      >
+        <Image 
+          source={item.profileImageUrl ? { uri: item.profileImageUrl } : require('../assets/Profile_picture.png')} 
+          style={styles.storeImage} 
+          resizeMode="cover"
+        />
+      </TouchableOpacity>
+    );
+  };
 
   const renderFeaturedProduct = ({ item }) => (
     <TouchableOpacity

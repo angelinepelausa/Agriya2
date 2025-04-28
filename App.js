@@ -18,6 +18,7 @@ import BuyAgain from './screens/BuyAgain';
 import SettingsScreen from './screens/SettingsScreen';
 import ShopScreen from './screens/ShopScreen';
 import ViewShop from './screens/ViewShop';
+import SellerShop from './screens/SellerShop';
 import SellerOrder from './screens/SellerOrder';
 import AddProduct from './screens/AddProduct';
 
@@ -44,6 +45,7 @@ const App = () => {
         <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
         <Stack.Screen name="ShopScreen" component={ShopScreen} />
         <Stack.Screen name="ViewShop" component={ViewShop} />
+        <Stack.Screen name="SellerShop" component={SellerShop} />
         <Stack.Screen name="SellerOrder" component={SellerOrder} />
         <Stack.Screen name="AddProduct" component={AddProduct} />
       </Stack.Navigator>

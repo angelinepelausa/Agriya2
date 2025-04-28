@@ -75,12 +75,6 @@ const LoginScreen = ({ navigation }) => {
           <Text style={styles.signInButtonText}>Sign In</Text>
         </TouchableOpacity>
 
-        <Text style={styles.orText}>or</Text>
-
-        <TouchableOpacity style={styles.googleButton}>
-          <Text style={styles.googleButtonText}>Continue with Google</Text>
-        </TouchableOpacity>
-
         <Text style={styles.registerText}>
           Don't have an account?{' '}
           <Text 
@@ -107,11 +101,11 @@ const styles = StyleSheet.create({
     height: 400,
     resizeMode: 'contain',
     position: 'absolute',
-    top: -30,
+    top: 10,
   },
   formContainer: {
     width: width, 
-    height: height * 0.6,
+    height: height * 0.5,
     backgroundColor: '#F8F8F8',
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
@@ -149,26 +143,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#FFF',
-  },
-  orText: {
-    fontSize: 16,
-    color: '#777',
-    marginVertical: 10,
-  },
-  googleButton: {
-    width: '90%',
-    height: 50,
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: '#CCC',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 10,
-  },
-  googleButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#555',
   },
   registerText: {
     fontSize: 14,
